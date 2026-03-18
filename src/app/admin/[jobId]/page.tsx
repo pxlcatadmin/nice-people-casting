@@ -1,0 +1,687 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
+
+interface Submission {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  instagram: string;
+  date_of_birth: string;
+  gender: string;
+  height_cm: number | null;
+  bust_cm: number | null;
+  waist_cm: number | null;
+  hips_cm: number | null;
+  shoe_size: string;
+  hair_color: string;
+  eye_color: string;
+  experience_level: string;
+  experience_notes: string;
+  digis: string[];
+  portfolio: string[];
+  photos: string[];
+  status: string;
+  admin_notes: string;
+  created_at: string;
+}
+
+interface Job {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  status: string;
+}
+
+type ViewMode = "slideshow" | "grid" | "table";
+type PhotoTab = "digis" | "portfolio" | "all";
+
+export default function JobReview() {
+  const { jobId } = useParams();
+  const router = useRouter();
+  const [job, setJob] = useState<Job | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [filtered, setFiltered] = useState<Submission[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentPhoto, setCurrentPhoto] = useState(0);
+  const [photoTab, setPhotoTab] = useState<PhotoTab>("digis");
+  const [viewMode, setViewMode] = useState<ViewMode>("slideshow");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [loading, setLoading] = useState(true);
+
+  const fetchJob = useCallback(async () => {
+    const res = await fetch("/api/admin/jobs");
+    if (res.ok) {
+      const jobs = await res.json();
+      const found = jobs.find((j: Job) => j.id === jobId);
+      if (found) setJob(found);
+    }
+  }, [jobId]);
+
+  const fetchSubmissions = useCallback(async () => {
+    const res = await fetch(`/api/admin/submissions?job_id=${jobId}`);
+    if (res.status === 401) {
+      router.push("/admin");
+      return;
+    }
+    if (res.ok) {
+      const data = await res.json();
+      setSubmissions(data);
+      setLoading(false);
+    }
+  }, [jobId, router]);
+
+  useEffect(() => {
+    fetchJob();
+    fetchSubmissions();
+  }, [fetchJob, fetchSubmissions]);
+
+  useEffect(() => {
+    if (filterStatus === "all") {
+      setFiltered(submissions);
+    } else {
+      setFiltered(submissions.filter((s) => s.status === filterStatus));
+    }
+    setCurrentIndex(0);
+    setCurrentPhoto(0);
+  }, [submissions, filterStatus]);
+
+  const updateStatus = async (id: string, status: string) => {
+    await fetch("/api/admin/submissions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+
+    setSubmissions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, status } : s))
+    );
+  };
+
+  const updateNotes = async (id: string, admin_notes: string) => {
+    await fetch("/api/admin/submissions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, admin_notes }),
+    });
+
+    setSubmissions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, admin_notes } : s))
+    );
+  };
+
+  const toggleJobStatus = async () => {
+    if (!job) return;
+    const newStatus = job.status === "open" ? "closed" : "open";
+    const res = await fetch("/api/admin/jobs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: job.id, status: newStatus }),
+    });
+    if (res.ok) {
+      setJob({ ...job, status: newStatus });
+    }
+  };
+
+  // Get photos for the current tab
+  const getPhotosForTab = (s: Submission): string[] => {
+    if (photoTab === "digis") return s.digis || [];
+    if (photoTab === "portfolio") return s.portfolio || [];
+    return [...(s.digis || []), ...(s.portfolio || [])];
+  };
+
+  // Keyboard navigation for slideshow
+  useEffect(() => {
+    if (viewMode !== "slideshow") return;
+
+    const handleKey = (e: KeyboardEvent) => {
+      // Don't capture keys when typing in textarea
+      if ((e.target as HTMLElement)?.tagName === "TEXTAREA") return;
+
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setCurrentIndex((i) => Math.min(i + 1, filtered.length - 1));
+        setCurrentPhoto(0);
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setCurrentIndex((i) => Math.max(i - 1, 0));
+        setCurrentPhoto(0);
+      } else if (e.key === "s") {
+        if (filtered[currentIndex]) {
+          updateStatus(filtered[currentIndex].id, "shortlisted");
+        }
+      } else if (e.key === "r") {
+        if (filtered[currentIndex]) {
+          updateStatus(filtered[currentIndex].id, "rejected");
+        }
+      } else if (e.key === "1") {
+        setPhotoTab("digis");
+        setCurrentPhoto(0);
+      } else if (e.key === "2") {
+        setPhotoTab("portfolio");
+        setCurrentPhoto(0);
+      } else if (e.key === "3") {
+        setPhotoTab("all");
+        setCurrentPhoto(0);
+      }
+    };
+
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [viewMode, currentIndex, filtered]);
+
+  const exportCSV = () => {
+    const headers = [
+      "First Name", "Last Name", "Email", "Phone", "Instagram",
+      "DOB", "Gender", "Height", "Bust", "Waist", "Hips",
+      "Shoe Size", "Hair", "Eyes", "Experience", "Notes",
+      "Status", "Admin Notes", "Digitals", "Portfolio",
+    ];
+
+    const rows = submissions.map((s) => [
+      s.first_name, s.last_name, s.email, s.phone, s.instagram,
+      s.date_of_birth, s.gender, s.height_cm || "", s.bust_cm || "",
+      s.waist_cm || "", s.hips_cm || "", s.shoe_size, s.hair_color,
+      s.eye_color, s.experience_level, s.experience_notes, s.status,
+      s.admin_notes,
+      (s.digis || []).join(" | "),
+      (s.portfolio || []).join(" | "),
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${job?.slug || "submissions"}-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
+  const current = filtered[currentIndex];
+  const currentPhotos = current ? getPhotosForTab(current) : [];
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <div className="border-b border-nice-border sticky top-0 bg-white z-20">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push("/admin")}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <Image
+              src="https://i.ibb.co/v2dbL7X/Group-9.png"
+              alt="Nice People"
+              width={28}
+              height={28}
+              unoptimized
+            />
+            <div>
+              <span className="text-sm font-medium">{job?.title}</span>
+              <span className="text-sm text-gray-400 ml-2">
+                {submissions.length} submission{submissions.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            {job && (
+              <button
+                onClick={toggleJobStatus}
+                className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                  job.status === "open"
+                    ? "bg-green-50 text-green-600"
+                    : "bg-gray-100 text-gray-500"
+                }`}
+              >
+                {job.status === "open" ? "Open" : "Closed"} — click to {job.status === "open" ? "close" : "reopen"}
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Status Filter */}
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-3 py-1.5 rounded-lg border border-nice-border text-sm focus:outline-none"
+            >
+              <option value="all">All</option>
+              <option value="new">New</option>
+              <option value="shortlisted">Shortlisted</option>
+              <option value="rejected">Rejected</option>
+              <option value="booked">Booked</option>
+            </select>
+
+            {/* View Mode */}
+            <div className="flex border border-nice-border rounded-lg overflow-hidden">
+              {(["slideshow", "grid", "table"] as ViewMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                    viewMode === mode
+                      ? "bg-nice-black text-white"
+                      : "text-gray-500 hover:bg-gray-50"
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={exportCSV}
+              className="px-4 py-1.5 rounded-lg border border-nice-border text-sm font-medium hover:border-gray-400 transition-colors"
+            >
+              Export CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <p>No submissions{filterStatus !== "all" ? ` with status "${filterStatus}"` : ""}.</p>
+        </div>
+      ) : viewMode === "slideshow" ? (
+        /* ========== SLIDESHOW VIEW ========== */
+        <div className="max-w-6xl mx-auto px-6 py-6">
+          <div className="flex gap-6 h-[calc(100vh-120px)]">
+            {/* Photo Section */}
+            <div className="flex-1 flex flex-col">
+              {/* Photo tab switcher */}
+              <div className="flex gap-1 mb-3">
+                {(["digis", "portfolio", "all"] as PhotoTab[]).map((tab) => {
+                  const count =
+                    tab === "digis"
+                      ? (current?.digis || []).length
+                      : tab === "portfolio"
+                      ? (current?.portfolio || []).length
+                      : [...(current?.digis || []), ...(current?.portfolio || [])].length;
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => {
+                        setPhotoTab(tab);
+                        setCurrentPhoto(0);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
+                        photoTab === tab
+                          ? "bg-nice-black text-white"
+                          : "text-gray-500 hover:bg-gray-50 border border-nice-border"
+                      }`}
+                    >
+                      {tab === "all" ? "All" : tab} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {currentPhotos.length > 0 ? (
+                <>
+                  <div className="flex-1 relative rounded-xl overflow-hidden bg-nice-gray">
+                    <img
+                      src={currentPhotos[currentPhoto]}
+                      alt={`${current.first_name} ${current.last_name}`}
+                      className="w-full h-full object-contain"
+                    />
+                    {/* Photo nav arrows */}
+                    {currentPhotos.length > 1 && (
+                      <>
+                        <button
+                          onClick={() => setCurrentPhoto((p) => Math.max(0, p - 1))}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60"
+                          disabled={currentPhoto === 0}
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setCurrentPhoto((p) => Math.min(currentPhotos.length - 1, p + 1))}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60"
+                          disabled={currentPhoto === currentPhotos.length - 1}
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+                    {/* Photo counter */}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full">
+                      {currentPhoto + 1} / {currentPhotos.length}
+                    </div>
+                  </div>
+                  {/* Photo thumbnails */}
+                  {currentPhotos.length > 1 && (
+                    <div className="flex gap-2 mt-3 overflow-x-auto hide-scrollbar">
+                      {currentPhotos.map((photo, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPhoto(i)}
+                          className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors flex-shrink-0 ${
+                            i === currentPhoto ? "border-nice-black" : "border-transparent"
+                          }`}
+                        >
+                          <img src={photo} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex-1 rounded-xl bg-nice-gray flex items-center justify-center text-gray-400">
+                  No {photoTab === "all" ? "photos" : photoTab} uploaded
+                </div>
+              )}
+            </div>
+
+            {/* Details Panel */}
+            <div className="w-80 flex flex-col overflow-y-auto hide-scrollbar">
+              {/* Navigation counter */}
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm text-gray-400">
+                  {currentIndex + 1} of {filtered.length}
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => {
+                      setCurrentIndex((i) => Math.max(0, i - 1));
+                      setCurrentPhoto(0);
+                    }}
+                    disabled={currentIndex === 0}
+                    className="w-8 h-8 rounded-full border border-nice-border flex items-center justify-center text-gray-400 hover:border-gray-400 disabled:opacity-30"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCurrentIndex((i) => Math.min(filtered.length - 1, i + 1));
+                      setCurrentPhoto(0);
+                    }}
+                    disabled={currentIndex === filtered.length - 1}
+                    className="w-8 h-8 rounded-full border border-nice-border flex items-center justify-center text-gray-400 hover:border-gray-400 disabled:opacity-30"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {current && (
+                <>
+                  {/* Name & Status */}
+                  <h2 className="text-xl font-semibold">
+                    {current.first_name} {current.last_name}
+                  </h2>
+                  {current.instagram && (
+                    <a
+                      href={`https://instagram.com/${current.instagram.replace("@", "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-gray-400 hover:text-gray-600 mt-1"
+                    >
+                      {current.instagram.startsWith("@") ? current.instagram : `@${current.instagram}`}
+                    </a>
+                  )}
+
+                  {/* Quick Actions */}
+                  <div className="flex gap-2 mt-4">
+                    {(["shortlisted", "rejected", "booked"] as const).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => updateStatus(current.id, s)}
+                        className={`flex-1 py-2 rounded-full text-xs font-medium capitalize transition-colors ${
+                          current.status === s
+                            ? s === "shortlisted"
+                              ? "bg-green-500 text-white"
+                              : s === "rejected"
+                              ? "bg-red-500 text-white"
+                              : "bg-blue-500 text-white"
+                            : "border border-nice-border text-gray-500 hover:border-gray-400"
+                        }`}
+                      >
+                        {s === "shortlisted" ? "Yes" : s === "rejected" ? "No" : "Book"}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Details */}
+                  <div className="mt-6 space-y-4 text-sm">
+                    <DetailSection title="Contact">
+                      <DetailRow label="Email" value={current.email} />
+                      <DetailRow label="Phone" value={current.phone} />
+                      <DetailRow label="DOB" value={current.date_of_birth} />
+                      <DetailRow label="Gender" value={current.gender} />
+                    </DetailSection>
+
+                    <DetailSection title="Measurements">
+                      <DetailRow label="Height" value={current.height_cm ? `${current.height_cm}cm` : ""} />
+                      <DetailRow label="Bust" value={current.bust_cm ? `${current.bust_cm}cm` : ""} />
+                      <DetailRow label="Waist" value={current.waist_cm ? `${current.waist_cm}cm` : ""} />
+                      <DetailRow label="Hips" value={current.hips_cm ? `${current.hips_cm}cm` : ""} />
+                      <DetailRow label="Shoe" value={current.shoe_size} />
+                      <DetailRow label="Hair" value={current.hair_color} />
+                      <DetailRow label="Eyes" value={current.eye_color} />
+                    </DetailSection>
+
+                    <DetailSection title="Experience">
+                      <DetailRow label="Level" value={current.experience_level} />
+                      {current.experience_notes && (
+                        <p className="text-gray-500 mt-1">{current.experience_notes}</p>
+                      )}
+                    </DetailSection>
+
+                    <DetailSection title="Photos">
+                      <DetailRow label="Digis" value={`${(current.digis || []).length} uploaded`} />
+                      <DetailRow label="Portfolio" value={`${(current.portfolio || []).length} uploaded`} />
+                    </DetailSection>
+
+                    {/* Notes */}
+                    <div>
+                      <h4 className="font-medium text-gray-700 mb-2">Notes</h4>
+                      <textarea
+                        value={current.admin_notes}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSubmissions((prev) =>
+                            prev.map((s) =>
+                              s.id === current.id ? { ...s, admin_notes: val } : s
+                            )
+                          );
+                        }}
+                        onBlur={() => updateNotes(current.id, current.admin_notes)}
+                        placeholder="Add notes..."
+                        rows={3}
+                        className="w-full px-3 py-2 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Keyboard shortcuts hint */}
+                  <div className="mt-6 pt-4 border-t border-nice-border">
+                    <p className="text-xs text-gray-300 leading-relaxed">
+                      Keys: Arrow keys = navigate, S = shortlist, R = reject,
+                      1 = digis, 2 = portfolio, 3 = all photos
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : viewMode === "grid" ? (
+        /* ========== GRID VIEW ========== */
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {filtered.map((s, idx) => (
+              <button
+                key={s.id}
+                onClick={() => {
+                  setCurrentIndex(idx);
+                  setCurrentPhoto(0);
+                  setViewMode("slideshow");
+                }}
+                className="group text-left"
+              >
+                <div className="aspect-[3/4] rounded-xl overflow-hidden bg-nice-gray relative">
+                  {(s.digis || [])[0] ? (
+                    <img
+                      src={s.digis[0]}
+                      alt={`${s.first_name} ${s.last_name}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (s.photos || [])[0] ? (
+                    <img
+                      src={s.photos[0]}
+                      alt={`${s.first_name} ${s.last_name}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl font-light">
+                      {s.first_name[0]}{s.last_name[0]}
+                    </div>
+                  )}
+                  {/* Status badge */}
+                  {s.status !== "new" && (
+                    <div
+                      className={`absolute top-2 right-2 w-3 h-3 rounded-full ${
+                        s.status === "shortlisted"
+                          ? "bg-green-500"
+                          : s.status === "rejected"
+                          ? "bg-red-500"
+                          : "bg-blue-500"
+                      }`}
+                    />
+                  )}
+                </div>
+                <p className="mt-2 text-sm font-medium truncate">
+                  {s.first_name} {s.last_name}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {s.height_cm ? `${s.height_cm}cm` : ""}
+                  {s.instagram && ` · ${s.instagram}`}
+                </p>
+                <p className="text-xs text-gray-300 mt-0.5">
+                  {(s.digis || []).length}d / {(s.portfolio || []).length}p
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* ========== TABLE VIEW ========== */
+        <div className="max-w-7xl mx-auto px-6 py-6 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-nice-border text-left">
+                <th className="pb-3 font-medium text-gray-500">Name</th>
+                <th className="pb-3 font-medium text-gray-500">Instagram</th>
+                <th className="pb-3 font-medium text-gray-500">Height</th>
+                <th className="pb-3 font-medium text-gray-500">Measurements</th>
+                <th className="pb-3 font-medium text-gray-500">Experience</th>
+                <th className="pb-3 font-medium text-gray-500">Digis</th>
+                <th className="pb-3 font-medium text-gray-500">Portfolio</th>
+                <th className="pb-3 font-medium text-gray-500">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((s, idx) => (
+                <tr
+                  key={s.id}
+                  onClick={() => {
+                    setCurrentIndex(idx);
+                    setCurrentPhoto(0);
+                    setViewMode("slideshow");
+                  }}
+                  className="border-b border-nice-border hover:bg-gray-50 cursor-pointer transition-colors"
+                >
+                  <td className="py-3 font-medium">
+                    {s.first_name} {s.last_name}
+                  </td>
+                  <td className="py-3 text-gray-500">{s.instagram}</td>
+                  <td className="py-3 text-gray-500">
+                    {s.height_cm ? `${s.height_cm}cm` : "-"}
+                  </td>
+                  <td className="py-3 text-gray-500">
+                    {[s.bust_cm && `B${s.bust_cm}`, s.waist_cm && `W${s.waist_cm}`, s.hips_cm && `H${s.hips_cm}`]
+                      .filter(Boolean)
+                      .join(" / ") || "-"}
+                  </td>
+                  <td className="py-3 text-gray-500 capitalize">{s.experience_level}</td>
+                  <td className="py-3 text-gray-500">{(s.digis || []).length}</td>
+                  <td className="py-3 text-gray-500">{(s.portfolio || []).length}</td>
+                  <td className="py-3">
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${
+                        s.status === "shortlisted"
+                          ? "bg-green-50 text-green-600"
+                          : s.status === "rejected"
+                          ? "bg-red-50 text-red-500"
+                          : s.status === "booked"
+                          ? "bg-blue-50 text-blue-600"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+                      {s.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DetailSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <h4 className="font-medium text-gray-700 mb-2">{title}</h4>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
+  return (
+    <div className="flex justify-between">
+      <span className="text-gray-400">{label}</span>
+      <span className="text-gray-700">{value}</span>
+    </div>
+  );
+}
