@@ -81,3 +81,23 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json(data);
 }
+
+export async function DELETE(request: NextRequest) {
+  const cookieStore = await cookies();
+  if (!isAuthed(cookieStore)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await request.json();
+
+  // Delete submissions first (foreign key)
+  await supabase.from("submissions").delete().eq("job_id", id);
+
+  const { error } = await supabase.from("jobs").delete().eq("id", id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}

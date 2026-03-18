@@ -13,6 +13,8 @@ interface Job {
   submissions: { count: number }[];
 }
 
+type SortKey = "newest" | "oldest" | "title" | "submissions";
+
 export default function AdminDashboard() {
   const [authed, setAuthed] = useState(false);
   const [password, setPassword] = useState("");
@@ -21,6 +23,12 @@ export default function AdminDashboard() {
   const [showNewJob, setShowNewJob] = useState(false);
   const [newJobTitle, setNewJobTitle] = useState("");
   const [newJobDesc, setNewJobDesc] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("newest");
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   const fetchJobs = useCallback(async () => {
     const res = await fetch("/api/admin/jobs");
@@ -66,6 +74,53 @@ export default function AdminDashboard() {
       fetchJobs();
     }
   };
+
+  const updateJob = async () => {
+    if (!editingJob || !editTitle.trim()) return;
+
+    const res = await fetch("/api/admin/jobs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: editingJob.id,
+        title: editTitle,
+        description: editDesc,
+      }),
+    });
+
+    if (res.ok) {
+      setEditingJob(null);
+      fetchJobs();
+    }
+  };
+
+  const deleteJob = async (id: string) => {
+    const res = await fetch("/api/admin/jobs", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+
+    if (res.ok) {
+      setDeleteConfirm(null);
+      fetchJobs();
+    }
+  };
+
+  const sortedJobs = [...jobs].sort((a, b) => {
+    switch (sortBy) {
+      case "newest":
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      case "oldest":
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case "title":
+        return a.title.localeCompare(b.title);
+      case "submissions":
+        return (b.submissions?.[0]?.count || 0) - (a.submissions?.[0]?.count || 0);
+      default:
+        return 0;
+    }
+  });
 
   if (!authed) {
     return (
@@ -126,7 +181,21 @@ export default function AdminDashboard() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
-        <h1 className="text-2xl font-semibold mb-6">Casting callouts</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-semibold">Casting callouts</h1>
+          {jobs.length > 1 && (
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortKey)}
+              className="text-sm px-3 py-2 rounded-lg border border-nice-border bg-white focus:outline-none focus:border-gray-400"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="title">A–Z</option>
+              <option value="submissions">Most submissions</option>
+            </select>
+          )}
+        </div>
 
         {/* New Job Modal */}
         {showNewJob && (
@@ -165,6 +234,69 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* Edit Job Modal */}
+        {editingJob && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-6">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4">
+              <h2 className="text-lg font-semibold">Edit callout</h2>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Title"
+                className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400"
+              />
+              <textarea
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                placeholder="Brief description (shown to applicants)"
+                rows={3}
+                className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 resize-none"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setEditingJob(null)}
+                  className="px-6 py-2.5 rounded-full border border-nice-border text-sm font-medium hover:border-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={updateJob}
+                  className="flex-1 py-2.5 rounded-full bg-nice-black text-white text-sm font-medium hover:bg-black transition-colors"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {deleteConfirm && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-6">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4">
+              <h2 className="text-lg font-semibold">Delete callout?</h2>
+              <p className="text-sm text-gray-500">
+                This will permanently delete the callout and all its submissions. This can&apos;t be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="px-6 py-2.5 rounded-full border border-nice-border text-sm font-medium hover:border-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => deleteJob(deleteConfirm)}
+                  className="flex-1 py-2.5 rounded-full bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Jobs List */}
         {jobs.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
@@ -175,37 +307,90 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <div className="space-y-3">
-            {jobs.map((job) => {
+            {sortedJobs.map((job) => {
               const count = job.submissions?.[0]?.count || 0;
               return (
-                <a
+                <div
                   key={job.id}
-                  href={`/admin/${job.id}`}
-                  className="block p-5 rounded-xl border border-nice-border hover:border-gray-300 transition-colors"
+                  className="relative p-5 rounded-xl border border-nice-border hover:border-gray-300 transition-colors"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-medium">{job.title}</h3>
-                      <p className="text-sm text-gray-400 mt-1">
-                        /{job.slug}
-                      </p>
+                  <a
+                    href={`/admin/${job.id}`}
+                    className="block"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-medium">{job.title}</h3>
+                        <p className="text-sm text-gray-400 mt-1">
+                          /{job.slug}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 pr-8">
+                        <span className="text-sm text-gray-500">
+                          {count} submission{count !== 1 ? "s" : ""}
+                        </span>
+                        <span
+                          className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                            job.status === "open"
+                              ? "bg-green-50 text-green-600"
+                              : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {job.status}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-gray-500">
-                        {count} submission{count !== 1 ? "s" : ""}
-                      </span>
-                      <span
-                        className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                          job.status === "open"
-                            ? "bg-green-50 text-green-600"
-                            : "bg-gray-100 text-gray-500"
-                        }`}
-                      >
-                        {job.status}
-                      </span>
-                    </div>
-                  </div>
-                </a>
+                  </a>
+                  {/* Three-dot menu */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setMenuOpen(menuOpen === job.id ? null : job.id);
+                    }}
+                    className="absolute top-5 right-5 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <circle cx="8" cy="3" r="1.5" />
+                      <circle cx="8" cy="8" r="1.5" />
+                      <circle cx="8" cy="13" r="1.5" />
+                    </svg>
+                  </button>
+                  {menuOpen === job.id && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setMenuOpen(null)}
+                      />
+                      <div className="absolute top-12 right-5 z-50 bg-white rounded-xl border border-nice-border shadow-lg py-1 min-w-[140px]">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEditingJob(job);
+                            setEditTitle(job.title);
+                            setEditDesc(job.description);
+                            setMenuOpen(null);
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDeleteConfirm(job.id);
+                            setMenuOpen(null);
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               );
             })}
           </div>

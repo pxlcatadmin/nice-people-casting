@@ -14,7 +14,31 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Nice People Casting",
-  description: "Talent submissions for Nice People",
+  description: "Talent & casting agency",
+  metadataBase: new URL("https://casting.nicepeople.au"),
+  openGraph: {
+    title: "Nice People",
+    description: "Talent & casting agency",
+    siteName: "Nice People Casting",
+    type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Nice People",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nice People",
+    description: "Talent & casting agency",
+    images: ["/og-image.png"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

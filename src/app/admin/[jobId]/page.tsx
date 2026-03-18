@@ -153,11 +153,8 @@ export default function JobReview() {
         setCurrentPhoto(0);
       } else if (e.key === "s") {
         if (filtered[currentIndex]) {
-          updateStatus(filtered[currentIndex].id, "shortlisted");
-        }
-      } else if (e.key === "r") {
-        if (filtered[currentIndex]) {
-          updateStatus(filtered[currentIndex].id, "rejected");
+          const cur = filtered[currentIndex];
+          updateStatus(cur.id, cur.status === "shortlisted" ? "new" : "shortlisted");
         }
       } else if (e.key === "1") {
         setPhotoTab("digis");
@@ -269,8 +266,6 @@ export default function JobReview() {
               <option value="all">All</option>
               <option value="new">New</option>
               <option value="shortlisted">Shortlisted</option>
-              <option value="rejected">Rejected</option>
-              <option value="booked">Booked</option>
             </select>
 
             {/* View Mode */}
@@ -450,26 +445,35 @@ export default function JobReview() {
                     </a>
                   )}
 
-                  {/* Quick Actions */}
-                  <div className="flex gap-2 mt-4">
-                    {(["shortlisted", "rejected", "booked"] as const).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => updateStatus(current.id, s)}
-                        className={`flex-1 py-2 rounded-full text-xs font-medium capitalize transition-colors ${
-                          current.status === s
-                            ? s === "shortlisted"
-                              ? "bg-green-500 text-white"
-                              : s === "rejected"
-                              ? "bg-red-500 text-white"
-                              : "bg-blue-500 text-white"
-                            : "border border-nice-border text-gray-500 hover:border-gray-400"
-                        }`}
-                      >
-                        {s === "shortlisted" ? "Yes" : s === "rejected" ? "No" : "Book"}
-                      </button>
-                    ))}
-                  </div>
+                  {/* Shortlist Toggle */}
+                  <button
+                    onClick={() =>
+                      updateStatus(
+                        current.id,
+                        current.status === "shortlisted" ? "new" : "shortlisted"
+                      )
+                    }
+                    className={`mt-4 w-full py-2.5 rounded-full text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                      current.status === "shortlisted"
+                        ? "bg-green-500 text-white"
+                        : "border border-nice-border text-gray-500 hover:border-gray-400"
+                    }`}
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill={current.status === "shortlisted" ? "currentColor" : "none"}
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+                      />
+                    </svg>
+                    {current.status === "shortlisted" ? "Shortlisted" : "Shortlist"}
+                  </button>
 
                   {/* Details */}
                   <div className="mt-6 space-y-4 text-sm">
@@ -526,7 +530,7 @@ export default function JobReview() {
                   {/* Keyboard shortcuts hint */}
                   <div className="mt-6 pt-4 border-t border-nice-border">
                     <p className="text-xs text-gray-300 leading-relaxed">
-                      Keys: Arrow keys = navigate, S = shortlist, R = reject,
+                      Keys: Arrow keys = navigate, S = toggle shortlist,
                       1 = digis, 2 = portfolio, 3 = all photos
                     </p>
                   </div>
@@ -567,17 +571,13 @@ export default function JobReview() {
                       {s.first_name[0]}{s.last_name[0]}
                     </div>
                   )}
-                  {/* Status badge */}
-                  {s.status !== "new" && (
-                    <div
-                      className={`absolute top-2 right-2 w-3 h-3 rounded-full ${
-                        s.status === "shortlisted"
-                          ? "bg-green-500"
-                          : s.status === "rejected"
-                          ? "bg-red-500"
-                          : "bg-blue-500"
-                      }`}
-                    />
+                  {/* Shortlisted star */}
+                  {s.status === "shortlisted" && (
+                    <div className="absolute top-2 right-2 text-green-500">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
+                    </div>
                   )}
                 </div>
                 <p className="mt-2 text-sm font-medium truncate">
@@ -637,19 +637,13 @@ export default function JobReview() {
                   <td className="py-3 text-gray-500">{(s.digis || []).length}</td>
                   <td className="py-3 text-gray-500">{(s.portfolio || []).length}</td>
                   <td className="py-3">
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${
-                        s.status === "shortlisted"
-                          ? "bg-green-50 text-green-600"
-                          : s.status === "rejected"
-                          ? "bg-red-50 text-red-500"
-                          : s.status === "booked"
-                          ? "bg-blue-50 text-blue-600"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
-                      {s.status}
-                    </span>
+                    {s.status === "shortlisted" ? (
+                      <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
