@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
       digis: digiUrls,
       portfolio: portfolioUrls,
       photos: [...digiUrls, ...portfolioUrls], // combined for backwards compat
+      self_tape_url: (formData.get("self_tape_url") as string) || "",
     });
 
     if (insertError) {

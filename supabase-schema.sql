@@ -8,6 +8,7 @@ CREATE TABLE jobs (
   slug TEXT NOT NULL UNIQUE,
   description TEXT DEFAULT '',
   status TEXT DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+  asset_config JSONB DEFAULT '{"digis":{"enabled":true,"required":true,"min":4,"max":8},"portfolio":{"enabled":true,"required":false,"max":10},"self_tape":{"enabled":false,"required":false}}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -37,6 +38,7 @@ CREATE TABLE submissions (
   digis JSONB DEFAULT '[]'::jsonb,
   portfolio JSONB DEFAULT '[]'::jsonb,
   photos JSONB DEFAULT '[]'::jsonb, -- combined digis + portfolio for quick access
+  self_tape_url TEXT DEFAULT '',
   -- Admin fields
   status TEXT DEFAULT 'new' CHECK (status IN ('new', 'shortlisted', 'rejected', 'booked')),
   admin_notes TEXT DEFAULT '',

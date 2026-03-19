@@ -3,12 +3,25 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 
+interface AssetConfig {
+  digis: { enabled: boolean; required: boolean; min: number; max: number };
+  portfolio: { enabled: boolean; required: boolean; max: number };
+  self_tape: { enabled: boolean; required: boolean };
+}
+
+const DEFAULT_ASSET_CONFIG: AssetConfig = {
+  digis: { enabled: true, required: true, min: 4, max: 8 },
+  portfolio: { enabled: true, required: false, max: 10 },
+  self_tape: { enabled: false, required: false },
+};
+
 interface Job {
   id: string;
   title: string;
   slug: string;
   description: string;
   status: string;
+  asset_config: AssetConfig;
   created_at: string;
   submissions: { count: number }[];
 }
@@ -23,10 +36,12 @@ export default function AdminDashboard() {
   const [showNewJob, setShowNewJob] = useState(false);
   const [newJobTitle, setNewJobTitle] = useState("");
   const [newJobDesc, setNewJobDesc] = useState("");
+  const [newAssetConfig, setNewAssetConfig] = useState<AssetConfig>(DEFAULT_ASSET_CONFIG);
   const [sortBy, setSortBy] = useState<SortKey>("newest");
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const [editAssetConfig, setEditAssetConfig] = useState<AssetConfig>(DEFAULT_ASSET_CONFIG);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
@@ -64,12 +79,17 @@ export default function AdminDashboard() {
     const res = await fetch("/api/admin/jobs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newJobTitle, description: newJobDesc }),
+      body: JSON.stringify({
+        title: newJobTitle,
+        description: newJobDesc,
+        asset_config: newAssetConfig,
+      }),
     });
 
     if (res.ok) {
       setNewJobTitle("");
       setNewJobDesc("");
+      setNewAssetConfig(DEFAULT_ASSET_CONFIG);
       setShowNewJob(false);
       fetchJobs();
     }
@@ -85,6 +105,7 @@ export default function AdminDashboard() {
         id: editingJob.id,
         title: editTitle,
         description: editDesc,
+        asset_config: editAssetConfig,
       }),
     });
 
@@ -200,7 +221,7 @@ export default function AdminDashboard() {
         {/* New Job Modal */}
         {showNewJob && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-6">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
               <h2 className="text-lg font-semibold">New casting callout</h2>
               <input
                 type="text"
@@ -216,9 +237,18 @@ export default function AdminDashboard() {
                 rows={3}
                 className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 resize-none"
               />
+
+              <AssetConfigEditor
+                config={newAssetConfig}
+                onChange={setNewAssetConfig}
+              />
+
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowNewJob(false)}
+                  onClick={() => {
+                    setShowNewJob(false);
+                    setNewAssetConfig(DEFAULT_ASSET_CONFIG);
+                  }}
                   className="px-6 py-2.5 rounded-full border border-nice-border text-sm font-medium hover:border-gray-400 transition-colors"
                 >
                   Cancel
@@ -237,7 +267,7 @@ export default function AdminDashboard() {
         {/* Edit Job Modal */}
         {editingJob && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-6">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
               <h2 className="text-lg font-semibold">Edit callout</h2>
               <input
                 type="text"
@@ -253,6 +283,12 @@ export default function AdminDashboard() {
                 rows={3}
                 className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 resize-none"
               />
+
+              <AssetConfigEditor
+                config={editAssetConfig}
+                onChange={setEditAssetConfig}
+              />
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setEditingJob(null)}
@@ -309,6 +345,13 @@ export default function AdminDashboard() {
           <div className="space-y-3">
             {sortedJobs.map((job) => {
               const count = job.submissions?.[0]?.count || 0;
+              const config = job.asset_config || DEFAULT_ASSET_CONFIG;
+              const assetTags = [
+                config.digis?.enabled && "Digis",
+                config.portfolio?.enabled && "Portfolio",
+                config.self_tape?.enabled && "Self tape",
+              ].filter(Boolean);
+
               return (
                 <div
                   key={job.id}
@@ -324,6 +367,15 @@ export default function AdminDashboard() {
                         <p className="text-sm text-gray-400 mt-1">
                           /{job.slug}
                         </p>
+                        {assetTags.length > 0 && (
+                          <div className="flex gap-1.5 mt-2">
+                            {assetTags.map((tag) => (
+                              <span key={tag as string} className="text-xs px-2 py-0.5 rounded-full bg-gray-50 text-gray-400">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 pr-8">
                         <span className="text-sm text-gray-500">
@@ -370,6 +422,7 @@ export default function AdminDashboard() {
                             setEditingJob(job);
                             setEditTitle(job.title);
                             setEditDesc(job.description);
+                            setEditAssetConfig(job.asset_config || DEFAULT_ASSET_CONFIG);
                             setMenuOpen(null);
                           }}
                           className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
@@ -395,6 +448,211 @@ export default function AdminDashboard() {
             })}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AssetConfigEditor({
+  config,
+  onChange,
+}: {
+  config: AssetConfig;
+  onChange: (config: AssetConfig) => void;
+}) {
+  return (
+    <div className="border-t border-nice-border pt-4">
+      <h3 className="text-sm font-medium text-gray-700 mb-3">What do applicants need to submit?</h3>
+      <div className="space-y-3">
+        {/* Digis */}
+        <div className="p-3 rounded-lg border border-nice-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    digis: { ...config.digis, enabled: !config.digis.enabled },
+                  })
+                }
+                className={`w-9 h-5 rounded-full transition-colors relative ${
+                  config.digis.enabled ? "bg-nice-black" : "bg-gray-200"
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
+                    config.digis.enabled ? "translate-x-4" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+              <span className="text-sm font-medium">Digitals</span>
+            </div>
+            {config.digis.enabled && (
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={config.digis.required}
+                  onChange={(e) =>
+                    onChange({
+                      ...config,
+                      digis: { ...config.digis, required: e.target.checked },
+                    })
+                  }
+                  className="rounded"
+                />
+                <span className="text-xs text-gray-500">Required</span>
+              </label>
+            )}
+          </div>
+          {config.digis.enabled && (
+            <div className="flex gap-3 mt-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-400">Min</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={config.digis.min}
+                  onChange={(e) =>
+                    onChange({
+                      ...config,
+                      digis: { ...config.digis, min: parseInt(e.target.value) || 1 },
+                    })
+                  }
+                  className="w-14 px-2 py-1 rounded border border-nice-border text-xs text-center focus:outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-400">Max</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={config.digis.max}
+                  onChange={(e) =>
+                    onChange({
+                      ...config,
+                      digis: { ...config.digis, max: parseInt(e.target.value) || 8 },
+                    })
+                  }
+                  className="w-14 px-2 py-1 rounded border border-nice-border text-xs text-center focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Portfolio */}
+        <div className="p-3 rounded-lg border border-nice-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    portfolio: { ...config.portfolio, enabled: !config.portfolio.enabled },
+                  })
+                }
+                className={`w-9 h-5 rounded-full transition-colors relative ${
+                  config.portfolio.enabled ? "bg-nice-black" : "bg-gray-200"
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
+                    config.portfolio.enabled ? "translate-x-4" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+              <span className="text-sm font-medium">Portfolio</span>
+            </div>
+            {config.portfolio.enabled && (
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={config.portfolio.required}
+                  onChange={(e) =>
+                    onChange({
+                      ...config,
+                      portfolio: { ...config.portfolio, required: e.target.checked },
+                    })
+                  }
+                  className="rounded"
+                />
+                <span className="text-xs text-gray-500">Required</span>
+              </label>
+            )}
+          </div>
+          {config.portfolio.enabled && (
+            <div className="flex gap-3 mt-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-400">Max</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={config.portfolio.max}
+                  onChange={(e) =>
+                    onChange({
+                      ...config,
+                      portfolio: { ...config.portfolio, max: parseInt(e.target.value) || 10 },
+                    })
+                  }
+                  className="w-14 px-2 py-1 rounded border border-nice-border text-xs text-center focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Self Tape */}
+        <div className="p-3 rounded-lg border border-nice-border">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...config,
+                    self_tape: { ...config.self_tape, enabled: !config.self_tape.enabled },
+                  })
+                }
+                className={`w-9 h-5 rounded-full transition-colors relative ${
+                  config.self_tape.enabled ? "bg-nice-black" : "bg-gray-200"
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
+                    config.self_tape.enabled ? "translate-x-4" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+              <span className="text-sm font-medium">Self tape</span>
+            </div>
+            {config.self_tape.enabled && (
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={config.self_tape.required}
+                  onChange={(e) =>
+                    onChange({
+                      ...config,
+                      self_tape: { ...config.self_tape, required: e.target.checked },
+                    })
+                  }
+                  className="rounded"
+                />
+                <span className="text-xs text-gray-500">Required</span>
+              </label>
+            )}
+          </div>
+          {config.self_tape.enabled && (
+            <p className="text-xs text-gray-400 mt-2">
+              Applicants will paste a link (YouTube, Vimeo, Google Drive, etc.)
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

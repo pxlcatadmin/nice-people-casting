@@ -25,9 +25,16 @@ interface Submission {
   digis: string[];
   portfolio: string[];
   photos: string[];
+  self_tape_url: string;
   status: string;
   admin_notes: string;
   created_at: string;
+}
+
+interface AssetConfig {
+  digis: { enabled: boolean; required: boolean; min: number; max: number };
+  portfolio: { enabled: boolean; required: boolean; max: number };
+  self_tape: { enabled: boolean; required: boolean };
 }
 
 interface Job {
@@ -36,6 +43,7 @@ interface Job {
   slug: string;
   description: string;
   status: string;
+  asset_config: AssetConfig;
 }
 
 type ViewMode = "slideshow" | "grid" | "table";
@@ -140,7 +148,6 @@ export default function JobReview() {
     if (viewMode !== "slideshow") return;
 
     const handleKey = (e: KeyboardEvent) => {
-      // Don't capture keys when typing in textarea
       if ((e.target as HTMLElement)?.tagName === "TEXTAREA") return;
 
       if (e.key === "ArrowRight" || e.key === "ArrowDown") {
@@ -177,7 +184,7 @@ export default function JobReview() {
       "First Name", "Last Name", "Email", "Phone", "Instagram",
       "DOB", "Gender", "Height", "Bust", "Waist", "Hips",
       "Shoe Size", "Hair", "Eyes", "Experience", "Notes",
-      "Status", "Admin Notes", "Digitals", "Portfolio",
+      "Status", "Admin Notes", "Digitals", "Portfolio", "Self Tape",
     ];
 
     const rows = submissions.map((s) => [
@@ -188,6 +195,7 @@ export default function JobReview() {
       s.admin_notes,
       (s.digis || []).join(" | "),
       (s.portfolio || []).join(" | "),
+      s.self_tape_url || "",
     ]);
 
     const csv = [headers, ...rows]
@@ -219,78 +227,83 @@ export default function JobReview() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="border-b border-nice-border sticky top-0 bg-white z-20">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push("/admin")}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <Image
-              src="https://i.ibb.co/v2dbL7X/Group-9.png"
-              alt="Nice People"
-              width={28}
-              height={28}
-              unoptimized
-            />
-            <div>
-              <span className="text-sm font-medium">{job?.title}</span>
-              <span className="text-sm text-gray-400 ml-2">
-                {submissions.length} submission{submissions.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            {job && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+          {/* Top row: back, logo, title, status */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
               <button
-                onClick={toggleJobStatus}
-                className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                  job.status === "open"
-                    ? "bg-green-50 text-green-600"
-                    : "bg-gray-100 text-gray-500"
-                }`}
+                onClick={() => router.push("/admin")}
+                className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
               >
-                {job.status === "open" ? "Open" : "Closed"} — click to {job.status === "open" ? "close" : "reopen"}
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
               </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Status Filter */}
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-1.5 rounded-lg border border-nice-border text-sm focus:outline-none"
-            >
-              <option value="all">All</option>
-              <option value="new">New</option>
-              <option value="shortlisted">Shortlisted</option>
-            </select>
-
-            {/* View Mode */}
-            <div className="flex border border-nice-border rounded-lg overflow-hidden">
-              {(["slideshow", "grid", "table"] as ViewMode[]).map((mode) => (
+              <Image
+                src="https://i.ibb.co/v2dbL7X/Group-9.png"
+                alt="Nice People"
+                width={28}
+                height={28}
+                unoptimized
+                className="flex-shrink-0 hidden sm:block"
+              />
+              <div className="min-w-0">
+                <span className="text-sm font-medium truncate block">{job?.title}</span>
+                <span className="text-xs text-gray-400">
+                  {submissions.length} submission{submissions.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              {job && (
                 <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className={`px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                    viewMode === mode
-                      ? "bg-nice-black text-white"
-                      : "text-gray-500 hover:bg-gray-50"
+                  onClick={toggleJobStatus}
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 hidden sm:block ${
+                    job.status === "open"
+                      ? "bg-green-50 text-green-600"
+                      : "bg-gray-100 text-gray-500"
                   }`}
                 >
-                  {mode}
+                  {job.status === "open" ? "Open" : "Closed"} — click to {job.status === "open" ? "close" : "reopen"}
                 </button>
-              ))}
+              )}
             </div>
 
-            <button
-              onClick={exportCSV}
-              className="px-4 py-1.5 rounded-lg border border-nice-border text-sm font-medium hover:border-gray-400 transition-colors"
-            >
-              Export CSV
-            </button>
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-2 sm:px-3 py-1.5 rounded-lg border border-nice-border text-xs sm:text-sm focus:outline-none"
+              >
+                <option value="all">All</option>
+                <option value="new">New</option>
+                <option value="shortlisted">Shortlisted</option>
+              </select>
+
+              <div className="flex border border-nice-border rounded-lg overflow-hidden">
+                {(["slideshow", "grid", "table"] as ViewMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={`px-2 sm:px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                      viewMode === mode
+                        ? "bg-nice-black text-white"
+                        : "text-gray-500 hover:bg-gray-50"
+                    }`}
+                  >
+                    {mode === "slideshow" ? (
+                      <span className="sm:hidden">Slide</span>
+                    ) : null}
+                    <span className={mode === "slideshow" ? "hidden sm:inline" : ""}>{mode}</span>
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={exportCSV}
+                className="px-3 sm:px-4 py-1.5 rounded-lg border border-nice-border text-xs sm:text-sm font-medium hover:border-gray-400 transition-colors hidden sm:block"
+              >
+                Export CSV
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -301,8 +314,9 @@ export default function JobReview() {
         </div>
       ) : viewMode === "slideshow" ? (
         /* ========== SLIDESHOW VIEW ========== */
-        <div className="max-w-6xl mx-auto px-6 py-6">
-          <div className="flex gap-6 h-[calc(100vh-120px)]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+          {/* Desktop: side by side. Mobile: stacked */}
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 lg:h-[calc(100vh-120px)]">
             {/* Photo Section */}
             <div className="flex-1 flex flex-col">
               {/* Photo tab switcher */}
@@ -335,13 +349,12 @@ export default function JobReview() {
 
               {currentPhotos.length > 0 ? (
                 <>
-                  <div className="flex-1 relative rounded-xl overflow-hidden bg-nice-gray">
+                  <div className="relative rounded-xl overflow-hidden bg-nice-gray aspect-[3/4] sm:aspect-auto sm:flex-1">
                     <img
                       src={currentPhotos[currentPhoto]}
                       alt={`${current.first_name} ${current.last_name}`}
                       className="w-full h-full object-contain"
                     />
-                    {/* Photo nav arrows */}
                     {currentPhotos.length > 1 && (
                       <>
                         <button
@@ -364,12 +377,10 @@ export default function JobReview() {
                         </button>
                       </>
                     )}
-                    {/* Photo counter */}
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full">
                       {currentPhoto + 1} / {currentPhotos.length}
                     </div>
                   </div>
-                  {/* Photo thumbnails */}
                   {currentPhotos.length > 1 && (
                     <div className="flex gap-2 mt-3 overflow-x-auto hide-scrollbar">
                       {currentPhotos.map((photo, i) => (
@@ -387,14 +398,14 @@ export default function JobReview() {
                   )}
                 </>
               ) : (
-                <div className="flex-1 rounded-xl bg-nice-gray flex items-center justify-center text-gray-400">
+                <div className="aspect-[3/4] sm:aspect-auto sm:flex-1 rounded-xl bg-nice-gray flex items-center justify-center text-gray-400">
                   No {photoTab === "all" ? "photos" : photoTab} uploaded
                 </div>
               )}
             </div>
 
             {/* Details Panel */}
-            <div className="w-80 flex flex-col overflow-y-auto hide-scrollbar">
+            <div className="lg:w-80 flex flex-col pb-8 lg:pb-0 lg:overflow-y-auto hide-scrollbar">
               {/* Navigation counter */}
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm text-gray-400">
@@ -430,7 +441,6 @@ export default function JobReview() {
 
               {current && (
                 <>
-                  {/* Name & Status */}
                   <h2 className="text-xl font-semibold">
                     {current.first_name} {current.last_name}
                   </h2>
@@ -475,24 +485,26 @@ export default function JobReview() {
                     {current.status === "shortlisted" ? "Shortlisted" : "Shortlist"}
                   </button>
 
-                  {/* Details */}
+                  {/* Details - compact grid on mobile */}
                   <div className="mt-6 space-y-4 text-sm">
-                    <DetailSection title="Contact">
-                      <DetailRow label="Email" value={current.email} />
-                      <DetailRow label="Phone" value={current.phone} />
-                      <DetailRow label="DOB" value={current.date_of_birth} />
-                      <DetailRow label="Gender" value={current.gender} />
-                    </DetailSection>
+                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+                      <DetailSection title="Contact">
+                        <DetailRow label="Email" value={current.email} />
+                        <DetailRow label="Phone" value={current.phone} />
+                        <DetailRow label="DOB" value={current.date_of_birth} />
+                        <DetailRow label="Gender" value={current.gender} />
+                      </DetailSection>
 
-                    <DetailSection title="Measurements">
-                      <DetailRow label="Height" value={current.height_cm ? `${current.height_cm}cm` : ""} />
-                      <DetailRow label="Bust" value={current.bust_cm ? `${current.bust_cm}cm` : ""} />
-                      <DetailRow label="Waist" value={current.waist_cm ? `${current.waist_cm}cm` : ""} />
-                      <DetailRow label="Hips" value={current.hips_cm ? `${current.hips_cm}cm` : ""} />
-                      <DetailRow label="Shoe" value={current.shoe_size} />
-                      <DetailRow label="Hair" value={current.hair_color} />
-                      <DetailRow label="Eyes" value={current.eye_color} />
-                    </DetailSection>
+                      <DetailSection title="Measurements">
+                        <DetailRow label="Height" value={current.height_cm ? `${current.height_cm}cm` : ""} />
+                        <DetailRow label="Bust" value={current.bust_cm ? `${current.bust_cm}cm` : ""} />
+                        <DetailRow label="Waist" value={current.waist_cm ? `${current.waist_cm}cm` : ""} />
+                        <DetailRow label="Hips" value={current.hips_cm ? `${current.hips_cm}cm` : ""} />
+                        <DetailRow label="Shoe" value={current.shoe_size} />
+                        <DetailRow label="Hair" value={current.hair_color} />
+                        <DetailRow label="Eyes" value={current.eye_color} />
+                      </DetailSection>
+                    </div>
 
                     <DetailSection title="Experience">
                       <DetailRow label="Level" value={current.experience_level} />
@@ -501,12 +513,24 @@ export default function JobReview() {
                       )}
                     </DetailSection>
 
+                    {current.self_tape_url && (
+                      <DetailSection title="Self Tape">
+                        <a
+                          href={current.self_tape_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:text-blue-700 underline break-all"
+                        >
+                          View self tape
+                        </a>
+                      </DetailSection>
+                    )}
+
                     <DetailSection title="Photos">
                       <DetailRow label="Digis" value={`${(current.digis || []).length} uploaded`} />
                       <DetailRow label="Portfolio" value={`${(current.portfolio || []).length} uploaded`} />
                     </DetailSection>
 
-                    {/* Notes */}
                     <div>
                       <h4 className="font-medium text-gray-700 mb-2">Notes</h4>
                       <textarea
@@ -527,8 +551,7 @@ export default function JobReview() {
                     </div>
                   </div>
 
-                  {/* Keyboard shortcuts hint */}
-                  <div className="mt-6 pt-4 border-t border-nice-border">
+                  <div className="mt-6 pt-4 border-t border-nice-border hidden lg:block">
                     <p className="text-xs text-gray-300 leading-relaxed">
                       Keys: Arrow keys = navigate, S = toggle shortlist,
                       1 = digis, 2 = portfolio, 3 = all photos
@@ -541,8 +564,8 @@ export default function JobReview() {
         </div>
       ) : viewMode === "grid" ? (
         /* ========== GRID VIEW ========== */
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {filtered.map((s, idx) => (
               <button
                 key={s.id}
@@ -571,7 +594,6 @@ export default function JobReview() {
                       {s.first_name[0]}{s.last_name[0]}
                     </div>
                   )}
-                  {/* Shortlisted star */}
                   {s.status === "shortlisted" && (
                     <div className="absolute top-2 right-2 text-green-500">
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -596,17 +618,17 @@ export default function JobReview() {
         </div>
       ) : (
         /* ========== TABLE VIEW ========== */
-        <div className="max-w-7xl mx-auto px-6 py-6 overflow-x-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-nice-border text-left">
                 <th className="pb-3 font-medium text-gray-500">Name</th>
                 <th className="pb-3 font-medium text-gray-500">Instagram</th>
                 <th className="pb-3 font-medium text-gray-500">Height</th>
-                <th className="pb-3 font-medium text-gray-500">Measurements</th>
-                <th className="pb-3 font-medium text-gray-500">Experience</th>
+                <th className="pb-3 font-medium text-gray-500 hidden sm:table-cell">Measurements</th>
+                <th className="pb-3 font-medium text-gray-500 hidden sm:table-cell">Experience</th>
                 <th className="pb-3 font-medium text-gray-500">Digis</th>
-                <th className="pb-3 font-medium text-gray-500">Portfolio</th>
+                <th className="pb-3 font-medium text-gray-500 hidden sm:table-cell">Portfolio</th>
                 <th className="pb-3 font-medium text-gray-500">Status</th>
               </tr>
             </thead>
@@ -628,14 +650,14 @@ export default function JobReview() {
                   <td className="py-3 text-gray-500">
                     {s.height_cm ? `${s.height_cm}cm` : "-"}
                   </td>
-                  <td className="py-3 text-gray-500">
+                  <td className="py-3 text-gray-500 hidden sm:table-cell">
                     {[s.bust_cm && `B${s.bust_cm}`, s.waist_cm && `W${s.waist_cm}`, s.hips_cm && `H${s.hips_cm}`]
                       .filter(Boolean)
                       .join(" / ") || "-"}
                   </td>
-                  <td className="py-3 text-gray-500 capitalize">{s.experience_level}</td>
+                  <td className="py-3 text-gray-500 capitalize hidden sm:table-cell">{s.experience_level}</td>
                   <td className="py-3 text-gray-500">{(s.digis || []).length}</td>
-                  <td className="py-3 text-gray-500">{(s.portfolio || []).length}</td>
+                  <td className="py-3 text-gray-500 hidden sm:table-cell">{(s.portfolio || []).length}</td>
                   <td className="py-3">
                     {s.status === "shortlisted" ? (
                       <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 24 24">

@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
+
+interface AssetConfig {
+  digis: { enabled: boolean; required: boolean; min: number; max: number };
+  portfolio: { enabled: boolean; required: boolean; max: number };
+  self_tape: { enabled: boolean; required: boolean };
+}
 
 interface JobInfo {
   id: string;
@@ -10,7 +16,14 @@ interface JobInfo {
   slug: string;
   description: string;
   status: string;
+  asset_config: AssetConfig;
 }
+
+const DEFAULT_ASSET_CONFIG: AssetConfig = {
+  digis: { enabled: true, required: true, min: 4, max: 8 },
+  portfolio: { enabled: true, required: false, max: 10 },
+  self_tape: { enabled: false, required: false },
+};
 
 export default function SubmissionForm() {
   const { slug } = useParams();
@@ -42,6 +55,7 @@ export default function SubmissionForm() {
     }
     fetchJob();
   }, [slug]);
+
   const [digiFiles, setDigiFiles] = useState<File[]>([]);
   const [digiPreviews, setDigiPreviews] = useState<string[]>([]);
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
@@ -66,7 +80,24 @@ export default function SubmissionForm() {
     eye_color: "",
     experience_level: "none",
     experience_notes: "",
+    self_tape_url: "",
   });
+
+  const config = job?.asset_config || DEFAULT_ASSET_CONFIG;
+
+  // Build dynamic steps based on asset config
+  // Always: 1=About, 2=Measurements, then conditional asset steps, then Experience
+  const steps = useMemo(() => {
+    const s: string[] = ["about", "measurements"];
+    if (config.digis?.enabled) s.push("digis");
+    if (config.portfolio?.enabled) s.push("portfolio");
+    if (config.self_tape?.enabled) s.push("self_tape");
+    s.push("experience");
+    return s;
+  }, [config]);
+
+  const TOTAL_STEPS = steps.length;
+  const currentStepName = steps[step - 1];
 
   const updateForm = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -74,7 +105,8 @@ export default function SubmissionForm() {
 
   const handleDigis = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const newFiles = [...digiFiles, ...files].slice(0, 8);
+    const max = config.digis?.max || 8;
+    const newFiles = [...digiFiles, ...files].slice(0, max);
     setDigiFiles(newFiles);
     setDigiPreviews(newFiles.map((f) => URL.createObjectURL(f)));
   };
@@ -86,7 +118,8 @@ export default function SubmissionForm() {
 
   const handlePortfolio = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const newFiles = [...portfolioFiles, ...files].slice(0, 10);
+    const max = config.portfolio?.max || 10;
+    const newFiles = [...portfolioFiles, ...files].slice(0, max);
     setPortfolioFiles(newFiles);
     setPortfolioPreviews(newFiles.map((f) => URL.createObjectURL(f)));
   };
@@ -96,14 +129,28 @@ export default function SubmissionForm() {
     setPortfolioPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const TOTAL_STEPS = 5;
-
   const canProceed = () => {
-    if (step === 1) return form.first_name && form.last_name && form.email;
-    if (step === 2) return true;
-    if (step === 3) return digiFiles.length >= 4;
-    if (step === 4) return true; // portfolio is optional
+    if (currentStepName === "about") return form.first_name && form.last_name && form.email;
+    if (currentStepName === "measurements") return true;
+    if (currentStepName === "digis") {
+      if (config.digis?.required) {
+        return digiFiles.length >= (config.digis?.min || 1);
+      }
+      return true;
+    }
+    if (currentStepName === "portfolio") return true; // always optional to skip
+    if (currentStepName === "self_tape") {
+      if (config.self_tape?.required) return form.self_tape_url.trim().length > 0;
+      return true;
+    }
     return true;
+  };
+
+  const getButtonLabel = () => {
+    if (step === TOTAL_STEPS) return submitting ? "Submitting..." : "Submit application";
+    if (currentStepName === "portfolio" && portfolioFiles.length === 0) return "Skip";
+    if (currentStepName === "self_tape" && !config.self_tape?.required && !form.self_tape_url.trim()) return "Skip";
+    return "Continue";
   };
 
   const handleSubmit = async () => {
@@ -264,8 +311,8 @@ export default function SubmissionForm() {
           </div>
         )}
 
-        {/* Step 1: Basic Info */}
-        {step === 1 && (
+        {/* About You */}
+        {currentStepName === "about" && (
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold mb-1">About you</h2>
@@ -344,8 +391,8 @@ export default function SubmissionForm() {
           </div>
         )}
 
-        {/* Step 2: Measurements */}
-        {step === 2 && (
+        {/* Measurements */}
+        {currentStepName === "measurements" && (
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold mb-1">Measurements</h2>
@@ -407,8 +454,8 @@ export default function SubmissionForm() {
           </div>
         )}
 
-        {/* Step 3: Digitals */}
-        {step === 3 && (
+        {/* Digitals */}
+        {currentStepName === "digis" && (
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold mb-1">Digitals</h2>
@@ -433,7 +480,10 @@ export default function SubmissionForm() {
             </div>
 
             <p className="text-xs text-gray-400">
-              Minimum 4 photos required • Up to 8
+              {config.digis?.required
+                ? `Minimum ${config.digis.min} photo${config.digis.min !== 1 ? "s" : ""} required`
+                : "Optional"}{" "}
+              • Up to {config.digis?.max || 8}
             </p>
 
             <div className="grid grid-cols-2 gap-3">
@@ -454,7 +504,7 @@ export default function SubmissionForm() {
                 </div>
               ))}
 
-              {digiFiles.length < 8 && (
+              {digiFiles.length < (config.digis?.max || 8) && (
                 <button
                   type="button"
                   onClick={() => digiInputRef.current?.click()}
@@ -489,8 +539,8 @@ export default function SubmissionForm() {
           </div>
         )}
 
-        {/* Step 4: Portfolio */}
-        {step === 4 && (
+        {/* Portfolio */}
+        {currentStepName === "portfolio" && (
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold mb-1">Portfolio</h2>
@@ -508,14 +558,15 @@ export default function SubmissionForm() {
                   <li>• Strong self-tapes or content you&apos;re proud of</li>
                 </ul>
                 <p className="text-xs text-gray-400 mt-2">
-                  Don&apos;t have any yet? No worries — skip this step. Your digitals
-                  are what matter most.
+                  {config.portfolio?.required
+                    ? "At least 1 photo required."
+                    : "Don\u0027t have any yet? No worries — skip this step. Your digitals are what matter most."}
                 </p>
               </div>
             </div>
 
             <p className="text-xs text-gray-400">
-              Optional • Up to 10 photos
+              {config.portfolio?.required ? "Required" : "Optional"} • Up to {config.portfolio?.max || 10} photos
             </p>
 
             <div className="grid grid-cols-2 gap-3">
@@ -536,7 +587,7 @@ export default function SubmissionForm() {
                 </div>
               ))}
 
-              {portfolioFiles.length < 10 && (
+              {portfolioFiles.length < (config.portfolio?.max || 10) && (
                 <button
                   type="button"
                   onClick={() => portfolioInputRef.current?.click()}
@@ -571,8 +622,37 @@ export default function SubmissionForm() {
           </div>
         )}
 
-        {/* Step 5: Experience */}
-        {step === 5 && (
+        {/* Self Tape */}
+        {currentStepName === "self_tape" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Self tape</h2>
+              <p className="text-gray-400 text-sm">
+                Paste a link to your self tape video. YouTube, Vimeo, Google Drive,
+                or any shareable link works.
+              </p>
+              <div className="mt-3 p-3 bg-nice-gray rounded-lg">
+                <p className="text-xs text-gray-500 font-medium mb-1.5">Tips:</p>
+                <ul className="text-xs text-gray-500 space-y-1">
+                  <li>• Make sure the link is set to public or &quot;anyone with the link&quot;</li>
+                  <li>• Keep it under 2 minutes</li>
+                  <li>• Good lighting and clear audio</li>
+                </ul>
+              </div>
+            </div>
+
+            <Input
+              label="Video link"
+              value={form.self_tape_url}
+              onChange={(v) => updateForm("self_tape_url", v)}
+              placeholder="https://..."
+              required={config.self_tape?.required}
+            />
+          </div>
+        )}
+
+        {/* Experience */}
+        {currentStepName === "experience" && (
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold mb-1">Experience</h2>
@@ -661,7 +741,7 @@ export default function SubmissionForm() {
               disabled={!canProceed()}
               className="flex-1 py-3 rounded-full bg-nice-black text-white text-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:bg-black transition-colors"
             >
-              {step === 4 && portfolioFiles.length === 0 ? "Skip" : "Continue"}
+              {getButtonLabel()}
             </button>
           ) : (
             <button
