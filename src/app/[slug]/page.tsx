@@ -18,6 +18,7 @@ interface JobInfo {
   status: string;
   asset_config: AssetConfig;
   shoot_date: string | null;
+  brief_url: string | null;
 }
 
 const DEFAULT_ASSET_CONFIG: AssetConfig = {
@@ -314,6 +315,19 @@ export default function SubmissionForm() {
               <p className="text-gray-400 text-sm mt-2">
                 Shoot date: {new Date(job.shoot_date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}
               </p>
+            )}
+            {job.brief_url && (
+              <a
+                href={job.brief_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mt-3 px-4 py-2.5 rounded-lg border border-nice-border text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
+              >
+                <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2zm6-10a1 1 0 011 1v4a1 1 0 01-2 0V9a1 1 0 011-1zm0 8a1 1 0 100-2 1 1 0 000 2z" />
+                </svg>
+                View shoot details
+              </a>
             )}
           </div>
         )}
@@ -639,12 +653,15 @@ export default function SubmissionForm() {
                 or any shareable link works.
               </p>
               <div className="mt-3 p-3 bg-nice-gray rounded-lg">
-                <p className="text-xs text-gray-500 font-medium mb-1.5">Tips:</p>
-                <ul className="text-xs text-gray-500 space-y-1">
-                  <li>• Make sure the link is set to public or &quot;anyone with the link&quot;</li>
-                  <li>• Keep it under 2 minutes</li>
-                  <li>• Good lighting and clear audio</li>
-                </ul>
+                <p className="text-xs text-gray-500 font-medium mb-1.5">What to include:</p>
+                <ol className="text-xs text-gray-500 space-y-1 list-decimal list-inside">
+                  <li>Introduce yourself — your name, age, and where you&apos;re based.</li>
+                  <li>Tell us about your experience — any shoots, ads, or brands you&apos;ve worked with.</li>
+                  <li>If you&apos;re newer to it, just tell us a bit about yourself and why you&apos;re keen.</li>
+                </ol>
+                <p className="text-xs text-gray-400 mt-2">
+                  Make sure the link is set to public or &quot;anyone with the link&quot;.
+                </p>
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { v4 as uuidv4 } from "uuid";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,22 +36,58 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  const contentType = request.headers.get("content-type") || "";
 
-  const slug = body.title
+  let title: string;
+  let description: string;
+  let shoot_date: string | null;
+  let asset_config: unknown;
+  let brief_url: string | null = null;
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    title = formData.get("title") as string;
+    description = (formData.get("description") as string) || "";
+    shoot_date = (formData.get("shoot_date") as string) || null;
+    asset_config = formData.get("asset_config") ? JSON.parse(formData.get("asset_config") as string) : undefined;
+
+    const briefFile = formData.get("brief") as File | null;
+    if (briefFile && briefFile.size > 0) {
+      const fileName = `briefs/${uuidv4()}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("submissions")
+        .upload(fileName, briefFile, { contentType: "application/pdf" });
+
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage.from("submissions").getPublicUrl(fileName);
+        brief_url = publicUrl;
+      }
+    }
+  } else {
+    const body = await request.json();
+    title = body.title;
+    description = body.description || "";
+    shoot_date = body.shoot_date || null;
+    asset_config = body.asset_config;
+  }
+
+  const slug = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
+  const insertData: Record<string, unknown> = {
+    title,
+    slug,
+    description,
+    shoot_date,
+    asset_config: asset_config || undefined,
+  };
+  if (brief_url) insertData.brief_url = brief_url;
+
   const { data, error } = await supabase
     .from("jobs")
-    .insert({
-      title: body.title,
-      slug,
-      description: body.description || "",
-      shoot_date: body.shoot_date || null,
-      asset_config: body.asset_config || undefined,
-    })
+    .insert(insertData)
     .select()
     .single();
 
@@ -67,8 +104,44 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { id, ...updates } = body;
+  const contentType = request.headers.get("content-type") || "";
+
+  let id: string;
+  let updates: Record<string, unknown>;
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    id = formData.get("id") as string;
+    updates = {};
+
+    if (formData.get("title")) updates.title = formData.get("title") as string;
+    if (formData.get("description") !== null) updates.description = formData.get("description") as string;
+    if (formData.get("shoot_date") !== null) updates.shoot_date = (formData.get("shoot_date") as string) || null;
+    if (formData.get("asset_config")) updates.asset_config = JSON.parse(formData.get("asset_config") as string);
+    if (formData.get("status")) updates.status = formData.get("status") as string;
+
+    const briefFile = formData.get("brief") as File | null;
+    if (briefFile && briefFile.size > 0) {
+      const fileName = `briefs/${uuidv4()}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("submissions")
+        .upload(fileName, briefFile, { contentType: "application/pdf" });
+
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage.from("submissions").getPublicUrl(fileName);
+        updates.brief_url = publicUrl;
+      }
+    }
+
+    if (formData.get("remove_brief") === "true") {
+      updates.brief_url = null;
+    }
+  } else {
+    const body = await request.json();
+    id = body.id;
+    const { id: _id, ...rest } = body;
+    updates = rest;
+  }
 
   const { data, error } = await supabase
     .from("jobs")

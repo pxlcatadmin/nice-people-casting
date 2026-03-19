@@ -23,6 +23,7 @@ interface Job {
   status: string;
   asset_config: AssetConfig;
   shoot_date: string | null;
+  brief_url: string | null;
   created_at: string;
   submissions: { count: number }[];
 }
@@ -45,6 +46,9 @@ export default function AdminDashboard() {
   const [editDesc, setEditDesc] = useState("");
   const [editShootDate, setEditShootDate] = useState("");
   const [editAssetConfig, setEditAssetConfig] = useState<AssetConfig>(DEFAULT_ASSET_CONFIG);
+  const [newBriefFile, setNewBriefFile] = useState<File | null>(null);
+  const [editBriefFile, setEditBriefFile] = useState<File | null>(null);
+  const [removeBrief, setRemoveBrief] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
@@ -79,15 +83,16 @@ export default function AdminDashboard() {
   const createJob = async () => {
     if (!newJobTitle.trim()) return;
 
+    const formData = new FormData();
+    formData.append("title", newJobTitle);
+    formData.append("description", newJobDesc);
+    if (newShootDate) formData.append("shoot_date", newShootDate);
+    formData.append("asset_config", JSON.stringify(newAssetConfig));
+    if (newBriefFile) formData.append("brief", newBriefFile);
+
     const res = await fetch("/api/admin/jobs", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: newJobTitle,
-        description: newJobDesc,
-        shoot_date: newShootDate || null,
-        asset_config: newAssetConfig,
-      }),
+      body: formData,
     });
 
     if (res.ok) {
@@ -95,6 +100,7 @@ export default function AdminDashboard() {
       setNewJobDesc("");
       setNewShootDate("");
       setNewAssetConfig(DEFAULT_ASSET_CONFIG);
+      setNewBriefFile(null);
       setShowNewJob(false);
       fetchJobs();
     }
@@ -103,20 +109,24 @@ export default function AdminDashboard() {
   const updateJob = async () => {
     if (!editingJob || !editTitle.trim()) return;
 
+    const formData = new FormData();
+    formData.append("id", editingJob.id);
+    formData.append("title", editTitle);
+    formData.append("description", editDesc);
+    formData.append("shoot_date", editShootDate || "");
+    formData.append("asset_config", JSON.stringify(editAssetConfig));
+    if (editBriefFile) formData.append("brief", editBriefFile);
+    if (removeBrief) formData.append("remove_brief", "true");
+
     const res = await fetch("/api/admin/jobs", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: editingJob.id,
-        title: editTitle,
-        description: editDesc,
-        shoot_date: editShootDate || null,
-        asset_config: editAssetConfig,
-      }),
+      body: formData,
     });
 
     if (res.ok) {
       setEditingJob(null);
+      setEditBriefFile(null);
+      setRemoveBrief(false);
       fetchJobs();
     }
   };
@@ -253,6 +263,35 @@ export default function AdminDashboard() {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-medium mb-1.5 text-gray-500">Shoot brief (PDF)</label>
+                {newBriefFile ? (
+                  <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-nice-border bg-gray-50">
+                    <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2zm6-10a1 1 0 011 1v4a1 1 0 01-2 0V9a1 1 0 011-1zm0 8a1 1 0 100-2 1 1 0 000 2z" />
+                    </svg>
+                    <span className="text-sm text-gray-600 truncate flex-1">{newBriefFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setNewBriefFile(null)}
+                      className="text-gray-400 hover:text-gray-600 text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <label className="block w-full px-4 py-3 rounded-lg border border-dashed border-nice-border text-sm text-gray-400 text-center cursor-pointer hover:border-gray-400 transition-colors">
+                    Upload PDF
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => setNewBriefFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
               <AssetConfigEditor
                 config={newAssetConfig}
                 onChange={setNewAssetConfig}
@@ -263,6 +302,7 @@ export default function AdminDashboard() {
                   onClick={() => {
                     setShowNewJob(false);
                     setNewAssetConfig(DEFAULT_ASSET_CONFIG);
+                    setNewBriefFile(null);
                   }}
                   className="px-6 py-2.5 rounded-full border border-nice-border text-sm font-medium hover:border-gray-400 transition-colors"
                 >
@@ -308,6 +348,54 @@ export default function AdminDashboard() {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-medium mb-1.5 text-gray-500">Shoot brief (PDF)</label>
+                {editBriefFile ? (
+                  <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-nice-border bg-gray-50">
+                    <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2zm6-10a1 1 0 011 1v4a1 1 0 01-2 0V9a1 1 0 011-1zm0 8a1 1 0 100-2 1 1 0 000 2z" />
+                    </svg>
+                    <span className="text-sm text-gray-600 truncate flex-1">{editBriefFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditBriefFile(null)}
+                      className="text-gray-400 hover:text-gray-600 text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : editingJob?.brief_url && !removeBrief ? (
+                  <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-nice-border bg-gray-50">
+                    <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2zm6-10a1 1 0 011 1v4a1 1 0 01-2 0V9a1 1 0 011-1zm0 8a1 1 0 100-2 1 1 0 000 2z" />
+                    </svg>
+                    <a href={editingJob.brief_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:text-blue-700 truncate flex-1">
+                      View current brief
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setRemoveBrief(true)}
+                      className="text-gray-400 hover:text-gray-600 text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <label className="block w-full px-4 py-3 rounded-lg border border-dashed border-nice-border text-sm text-gray-400 text-center cursor-pointer hover:border-gray-400 transition-colors">
+                    {removeBrief ? "Upload new PDF" : "Upload PDF"}
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => {
+                        setEditBriefFile(e.target.files?.[0] || null);
+                        setRemoveBrief(false);
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
               <AssetConfigEditor
                 config={editAssetConfig}
                 onChange={setEditAssetConfig}
@@ -315,7 +403,11 @@ export default function AdminDashboard() {
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => setEditingJob(null)}
+                  onClick={() => {
+                    setEditingJob(null);
+                    setEditBriefFile(null);
+                    setRemoveBrief(false);
+                  }}
                   className="px-6 py-2.5 rounded-full border border-nice-border text-sm font-medium hover:border-gray-400 transition-colors"
                 >
                   Cancel
@@ -374,6 +466,7 @@ export default function AdminDashboard() {
                 config.digis?.enabled && "Digis",
                 config.portfolio?.enabled && "Portfolio",
                 config.self_tape?.enabled && "Self tape",
+                job.brief_url && "Brief",
               ].filter(Boolean);
 
               return (
