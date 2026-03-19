@@ -17,6 +17,7 @@ interface JobInfo {
   description: string;
   status: string;
   asset_config: AssetConfig;
+  shoot_date: string | null;
 }
 
 const DEFAULT_ASSET_CONFIG: AssetConfig = {
@@ -301,12 +302,18 @@ export default function SubmissionForm() {
 
       {/* Form */}
       <div className="max-w-lg mx-auto px-6 py-8">
+        <div key={step} className="animate-fade-in">
         {/* Job info banner - only on step 1 */}
         {step === 1 && job && (
           <div className="mb-8 pb-6 border-b border-nice-border">
             <h1 className="text-2xl font-semibold">{job.title}</h1>
             {job.description && (
               <p className="text-gray-500 text-sm mt-2">{job.description}</p>
+            )}
+            {job.shoot_date && (
+              <p className="text-gray-400 text-sm mt-2">
+                Shoot date: {new Date(job.shoot_date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
             )}
           </div>
         )}
@@ -714,6 +721,8 @@ export default function SubmissionForm() {
             </div>
           </div>
         )}
+
+        </div>{/* end animate-fade-in */}
 
         {/* Error */}
         {error && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 
@@ -179,6 +179,28 @@ export default function JobReview() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [viewMode, currentIndex, filtered]);
 
+  // Swipe support for mobile photo navigation
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const dx = e.changedTouches[0].clientX - touchStart.current.x;
+    const dy = e.changedTouches[0].clientY - touchStart.current.y;
+    // Only swipe if horizontal movement > vertical and > 50px
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      if (dx < 0 && currentPhoto < currentPhotos.length - 1) {
+        setCurrentPhoto((p) => p + 1);
+      } else if (dx > 0 && currentPhoto > 0) {
+        setCurrentPhoto((p) => p - 1);
+      }
+    }
+    touchStart.current = null;
+  };
+
   const exportCSV = () => {
     const headers = [
       "First Name", "Last Name", "Email", "Phone", "Instagram",
@@ -349,11 +371,16 @@ export default function JobReview() {
 
               {currentPhotos.length > 0 ? (
                 <>
-                  <div className="relative rounded-xl overflow-hidden bg-nice-gray aspect-[3/4] sm:aspect-auto sm:flex-1">
+                  <div
+                    className="relative rounded-xl overflow-hidden bg-nice-gray aspect-[3/4] sm:aspect-auto sm:flex-1"
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                  >
                     <img
+                      key={`${currentIndex}-${currentPhoto}`}
                       src={currentPhotos[currentPhoto]}
                       alt={`${current.first_name} ${current.last_name}`}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-contain animate-fade-image"
                     />
                     {currentPhotos.length > 1 && (
                       <>

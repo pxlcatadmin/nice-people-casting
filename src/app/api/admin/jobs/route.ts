@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       title: body.title,
       slug,
       description: body.description || "",
+      shoot_date: body.shoot_date || null,
       asset_config: body.asset_config || undefined,
     })
     .select()

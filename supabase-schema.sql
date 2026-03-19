@@ -8,6 +8,7 @@ CREATE TABLE jobs (
   slug TEXT NOT NULL UNIQUE,
   description TEXT DEFAULT '',
   status TEXT DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+  shoot_date DATE,
   asset_config JSONB DEFAULT '{"digis":{"enabled":true,"required":true,"min":4,"max":8},"portfolio":{"enabled":true,"required":false,"max":10},"self_tape":{"enabled":false,"required":false}}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now()
 );

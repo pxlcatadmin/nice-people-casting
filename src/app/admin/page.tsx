@@ -22,6 +22,7 @@ interface Job {
   description: string;
   status: string;
   asset_config: AssetConfig;
+  shoot_date: string | null;
   created_at: string;
   submissions: { count: number }[];
 }
@@ -36,11 +37,13 @@ export default function AdminDashboard() {
   const [showNewJob, setShowNewJob] = useState(false);
   const [newJobTitle, setNewJobTitle] = useState("");
   const [newJobDesc, setNewJobDesc] = useState("");
+  const [newShootDate, setNewShootDate] = useState("");
   const [newAssetConfig, setNewAssetConfig] = useState<AssetConfig>(DEFAULT_ASSET_CONFIG);
   const [sortBy, setSortBy] = useState<SortKey>("newest");
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const [editShootDate, setEditShootDate] = useState("");
   const [editAssetConfig, setEditAssetConfig] = useState<AssetConfig>(DEFAULT_ASSET_CONFIG);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
@@ -82,6 +85,7 @@ export default function AdminDashboard() {
       body: JSON.stringify({
         title: newJobTitle,
         description: newJobDesc,
+        shoot_date: newShootDate || null,
         asset_config: newAssetConfig,
       }),
     });
@@ -89,6 +93,7 @@ export default function AdminDashboard() {
     if (res.ok) {
       setNewJobTitle("");
       setNewJobDesc("");
+      setNewShootDate("");
       setNewAssetConfig(DEFAULT_ASSET_CONFIG);
       setShowNewJob(false);
       fetchJobs();
@@ -105,6 +110,7 @@ export default function AdminDashboard() {
         id: editingJob.id,
         title: editTitle,
         description: editDesc,
+        shoot_date: editShootDate || null,
         asset_config: editAssetConfig,
       }),
     });
@@ -237,6 +243,15 @@ export default function AdminDashboard() {
                 rows={3}
                 className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 resize-none"
               />
+              <div>
+                <label className="block text-xs font-medium mb-1.5 text-gray-500">Shoot date</label>
+                <input
+                  type="date"
+                  value={newShootDate}
+                  onChange={(e) => setNewShootDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400"
+                />
+              </div>
 
               <AssetConfigEditor
                 config={newAssetConfig}
@@ -283,6 +298,15 @@ export default function AdminDashboard() {
                 rows={3}
                 className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 resize-none"
               />
+              <div>
+                <label className="block text-xs font-medium mb-1.5 text-gray-500">Shoot date</label>
+                <input
+                  type="date"
+                  value={editShootDate}
+                  onChange={(e) => setEditShootDate(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400"
+                />
+              </div>
 
               <AssetConfigEditor
                 config={editAssetConfig}
@@ -366,6 +390,11 @@ export default function AdminDashboard() {
                         <h3 className="font-medium">{job.title}</h3>
                         <p className="text-sm text-gray-400 mt-1">
                           /{job.slug}
+                          {job.shoot_date && (
+                            <span className="ml-2">
+                              · Shoot: {new Date(job.shoot_date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
+                            </span>
+                          )}
                         </p>
                         {assetTags.length > 0 && (
                           <div className="flex gap-1.5 mt-2">
@@ -422,6 +451,7 @@ export default function AdminDashboard() {
                             setEditingJob(job);
                             setEditTitle(job.title);
                             setEditDesc(job.description);
+                            setEditShootDate(job.shoot_date || "");
                             setEditAssetConfig(job.asset_config || DEFAULT_ASSET_CONFIG);
                             setMenuOpen(null);
                           }}
