@@ -37,6 +37,29 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(data);
 }
 
+export async function DELETE(request: NextRequest) {
+  const cookieStore = await cookies();
+  if (!isAuthed(cookieStore)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const id = request.nextUrl.searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
+  const { error } = await supabase
+    .from("submissions")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
+
 export async function PATCH(request: NextRequest) {
   const cookieStore = await cookies();
   if (!isAuthed(cookieStore)) {

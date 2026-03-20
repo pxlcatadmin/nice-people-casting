@@ -123,6 +123,12 @@ export default function JobReview() {
     );
   };
 
+  const deleteSubmission = async (id: string) => {
+    if (!confirm("Delete this submission? This can't be undone.")) return;
+    await fetch(`/api/admin/submissions?id=${id}`, { method: "DELETE" });
+    setSubmissions((prev) => prev.filter((s) => s.id !== id));
+  };
+
   const toggleJobStatus = async () => {
     if (!job) return;
     const newStatus = job.status === "open" ? "closed" : "open";
@@ -578,7 +584,14 @@ export default function JobReview() {
                     </div>
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-nice-border hidden lg:block">
+                  <button
+                    onClick={() => deleteSubmission(current.id)}
+                    className="mt-4 w-full py-2 rounded-lg text-xs text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    Delete submission
+                  </button>
+
+                  <div className="mt-4 pt-4 border-t border-nice-border hidden lg:block">
                     <p className="text-xs text-gray-300 leading-relaxed">
                       Keys: Arrow keys = navigate, S = toggle shortlist,
                       1 = digis, 2 = portfolio, 3 = all photos
