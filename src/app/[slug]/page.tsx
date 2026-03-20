@@ -3,6 +3,12 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface AssetConfig {
   digis: { enabled: boolean; required: boolean; min: number; max: number };
@@ -155,29 +161,51 @@ export default function SubmissionForm() {
     return "Continue";
   };
 
+  const uploadFileToStorage = async (file: File, folder: string): Promise<string | null> => {
+    const ext = file.name.split(".").pop();
+    const fileName = `${slug}/${folder}/${crypto.randomUUID()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("submissions")
+      .upload(fileName, file, { contentType: file.type });
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      return null;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from("submissions").getPublicUrl(fileName);
+    return publicUrl;
+  };
+
   const handleSubmit = async () => {
     setSubmitting(true);
     setError("");
 
-    const formData = new FormData();
-    formData.append("job_slug", slug as string);
-
-    Object.entries(form).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
-
-    digiFiles.forEach((file) => {
-      formData.append("digis", file);
-    });
-
-    portfolioFiles.forEach((file) => {
-      formData.append("portfolio", file);
-    });
-
     try {
+      // Upload photos directly to Supabase Storage from browser
+      const digiUrls: string[] = [];
+      for (const file of digiFiles) {
+        const url = await uploadFileToStorage(file, "digis");
+        if (url) digiUrls.push(url);
+      }
+
+      const portfolioUrls: string[] = [];
+      for (const file of portfolioFiles) {
+        const url = await uploadFileToStorage(file, "portfolio");
+        if (url) portfolioUrls.push(url);
+      }
+
+      // Send just the data + URLs to the API (no files)
       const res = await fetch("/api/submit", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          job_slug: slug,
+          ...form,
+          digis: digiUrls,
+          portfolio: portfolioUrls,
+        }),
       });
 
       const data = await res.json();
