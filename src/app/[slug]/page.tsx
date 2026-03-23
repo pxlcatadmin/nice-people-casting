@@ -40,6 +40,7 @@ export default function SubmissionForm() {
   const [jobError, setJobError] = useState("");
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
 
@@ -161,13 +162,37 @@ export default function SubmissionForm() {
     return "Continue";
   };
 
+  const resizeImage = (file: File, maxDim: number): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const img = document.createElement("img");
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => resolve(blob!), "image/jpeg", 0.85);
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const uploadFileToStorage = async (file: File, folder: string): Promise<string | null> => {
-    const ext = file.name.split(".").pop();
-    const fileName = `${slug}/${folder}/${crypto.randomUUID()}.${ext}`;
+    const resized = await resizeImage(file, 2000);
+    const fileName = `${slug}/${folder}/${crypto.randomUUID()}.jpg`;
 
     const { error: uploadError } = await supabase.storage
       .from("submissions")
-      .upload(fileName, file, { contentType: file.type });
+      .upload(fileName, resized, { contentType: "image/jpeg" });
 
     if (uploadError) {
       console.error("Upload error:", uploadError);
@@ -183,18 +208,21 @@ export default function SubmissionForm() {
     setError("");
 
     try {
-      // Upload photos directly to Supabase Storage from browser
-      const digiUrls: string[] = [];
-      for (const file of digiFiles) {
-        const url = await uploadFileToStorage(file, "digis");
-        if (url) digiUrls.push(url);
+      const totalFiles = digiFiles.length + portfolioFiles.length;
+      if (totalFiles > 0) {
+        setSubmitProgress(`Uploading ${totalFiles} photo${totalFiles !== 1 ? "s" : ""}...`);
       }
 
-      const portfolioUrls: string[] = [];
-      for (const file of portfolioFiles) {
-        const url = await uploadFileToStorage(file, "portfolio");
-        if (url) portfolioUrls.push(url);
-      }
+      // Upload all photos in parallel for speed
+      const [digiResults, portfolioResults] = await Promise.all([
+        Promise.all(digiFiles.map((f) => uploadFileToStorage(f, "digis"))),
+        Promise.all(portfolioFiles.map((f) => uploadFileToStorage(f, "portfolio"))),
+      ]);
+
+      const digiUrls = digiResults.filter(Boolean) as string[];
+      const portfolioUrls = portfolioResults.filter(Boolean) as string[];
+
+      setSubmitProgress("Saving your application...");
 
       // Send just the data + URLs to the API (no files)
       const res = await fetch("/api/submit", {
@@ -804,7 +832,7 @@ export default function SubmissionForm() {
               disabled={submitting}
               className="flex-1 py-3 rounded-full bg-nice-black text-white text-sm font-medium disabled:opacity-50 hover:bg-black transition-colors"
             >
-              {submitting ? "Submitting..." : "Submit application"}
+              {submitting ? (submitProgress || "Submitting...") : "Submit application"}
             </button>
           )}
         </div>

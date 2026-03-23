@@ -149,6 +149,17 @@ export default function JobReview() {
     return [...(s.digis || []), ...(s.portfolio || [])];
   };
 
+  // Preload next submission's photos
+  useEffect(() => {
+    if (viewMode !== "slideshow" || !filtered[currentIndex + 1]) return;
+    const next = filtered[currentIndex + 1];
+    const photos = [...(next.digis || []), ...(next.portfolio || [])];
+    photos.forEach((url) => {
+      const img = new window.Image();
+      img.src = url;
+    });
+  }, [currentIndex, filtered, viewMode]);
+
   // Keyboard navigation for slideshow
   useEffect(() => {
     if (viewMode !== "slideshow") return;
@@ -621,12 +632,14 @@ export default function JobReview() {
                     <img
                       src={s.digis[0]}
                       alt={`${s.first_name} ${s.last_name}`}
+                      loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (s.photos || [])[0] ? (
                     <img
                       src={s.photos[0]}
                       alt={`${s.first_name} ${s.last_name}`}
+                      loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
