@@ -10,10 +10,30 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+interface MeasurementFields {
+  height_cm: boolean;
+  bust_cm: boolean;
+  waist_cm: boolean;
+  hips_cm: boolean;
+  shoe_size: boolean;
+  hair_color: boolean;
+  eye_color: boolean;
+}
+
+interface AboutFields {
+  phone: boolean;
+  instagram: boolean;
+  date_of_birth: boolean;
+  gender: boolean;
+}
+
 interface AssetConfig {
   digis: { enabled: boolean; required: boolean; min: number; max: number };
   portfolio: { enabled: boolean; required: boolean; max: number };
   self_tape: { enabled: boolean; required: boolean };
+  measurements: { enabled: boolean; fields: MeasurementFields };
+  about: { fields: AboutFields };
+  experience: { enabled: boolean };
 }
 
 interface JobInfo {
@@ -31,6 +51,14 @@ const DEFAULT_ASSET_CONFIG: AssetConfig = {
   digis: { enabled: true, required: true, min: 4, max: 8 },
   portfolio: { enabled: true, required: false, max: 10 },
   self_tape: { enabled: false, required: false },
+  measurements: {
+    enabled: true,
+    fields: { height_cm: true, bust_cm: true, waist_cm: true, hips_cm: true, shoe_size: true, hair_color: true, eye_color: true },
+  },
+  about: {
+    fields: { phone: true, instagram: true, date_of_birth: true, gender: true },
+  },
+  experience: { enabled: true },
 };
 
 export default function SubmissionForm() {
@@ -92,16 +120,33 @@ export default function SubmissionForm() {
     self_tape_url: "",
   });
 
-  const config = job?.asset_config || DEFAULT_ASSET_CONFIG;
+  // Merge job config with defaults for backward compatibility with old jobs
+  const config = useMemo((): AssetConfig => {
+    const raw = job?.asset_config;
+    if (!raw) return DEFAULT_ASSET_CONFIG;
+    return {
+      digis: { ...DEFAULT_ASSET_CONFIG.digis, ...raw.digis },
+      portfolio: { ...DEFAULT_ASSET_CONFIG.portfolio, ...raw.portfolio },
+      self_tape: { ...DEFAULT_ASSET_CONFIG.self_tape, ...raw.self_tape },
+      measurements: {
+        enabled: raw.measurements?.enabled ?? true,
+        fields: { ...DEFAULT_ASSET_CONFIG.measurements.fields, ...raw.measurements?.fields },
+      },
+      about: {
+        fields: { ...DEFAULT_ASSET_CONFIG.about.fields, ...raw.about?.fields },
+      },
+      experience: { enabled: raw.experience?.enabled ?? true },
+    };
+  }, [job?.asset_config]);
 
-  // Build dynamic steps based on asset config
-  // Always: 1=About, 2=Measurements, then conditional asset steps, then Experience
+  // Build dynamic steps - welcome is always first, about is always second
   const steps = useMemo(() => {
-    const s: string[] = ["about", "measurements"];
-    if (config.digis?.enabled) s.push("digis");
-    if (config.portfolio?.enabled) s.push("portfolio");
-    if (config.self_tape?.enabled) s.push("self_tape");
-    s.push("experience");
+    const s: string[] = ["welcome", "about"];
+    if (config.measurements.enabled) s.push("measurements");
+    if (config.digis.enabled) s.push("digis");
+    if (config.portfolio.enabled) s.push("portfolio");
+    if (config.self_tape.enabled) s.push("self_tape");
+    if (config.experience.enabled) s.push("experience");
     return s;
   }, [config]);
 
@@ -139,6 +184,7 @@ export default function SubmissionForm() {
   };
 
   const canProceed = () => {
+    if (currentStepName === "welcome") return true;
     if (currentStepName === "about") return form.first_name && form.last_name && form.email;
     if (currentStepName === "measurements") return true;
     if (currentStepName === "digis") {
@@ -360,24 +406,26 @@ export default function SubmissionForm() {
       {/* Form */}
       <div className="max-w-lg mx-auto px-6 py-8">
         <div key={step} className="animate-fade-in">
-        {/* Job info banner - only on step 1 */}
-        {step === 1 && job && (
-          <div className="mb-8 pb-6 border-b border-nice-border">
-            <h1 className="text-2xl font-semibold">{job.title}</h1>
-            {job.description && (
-              <p className="text-gray-500 text-sm mt-2">{job.description}</p>
-            )}
-            {job.shoot_date && (
-              <p className="text-gray-400 text-sm mt-2">
-                Shoot date: {new Date(job.shoot_date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}
-              </p>
-            )}
+        {/* Welcome Screen */}
+        {currentStepName === "welcome" && job && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-semibold">{job.title}</h1>
+              {job.description && (
+                <p className="text-gray-500 text-sm mt-3">{job.description}</p>
+              )}
+              {job.shoot_date && (
+                <p className="text-gray-400 text-sm mt-3">
+                  Shoot date: {new Date(job.shoot_date + "T00:00:00").toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}
+                </p>
+              )}
+            </div>
             {job.brief_url && (
               <a
                 href={job.brief_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 mt-3 px-4 py-2.5 rounded-lg border border-nice-border text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-nice-border text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
               >
                 <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2zm6-10a1 1 0 011 1v4a1 1 0 01-2 0V9a1 1 0 011-1zm0 8a1 1 0 100-2 1 1 0 000 2z" />
@@ -421,50 +469,58 @@ export default function SubmissionForm() {
               required
             />
 
-            <Input
-              label="Phone"
-              type="tel"
-              value={form.phone}
-              onChange={(v) => updateForm("phone", v)}
-            />
+            {config.about.fields.phone && (
+              <Input
+                label="Phone"
+                type="tel"
+                value={form.phone}
+                onChange={(v) => updateForm("phone", v)}
+              />
+            )}
 
-            <Input
-              label="Instagram handle"
-              value={form.instagram}
-              onChange={(v) => updateForm("instagram", v)}
-              placeholder="@"
-            />
+            {config.about.fields.instagram && (
+              <Input
+                label="Instagram handle"
+                value={form.instagram}
+                onChange={(v) => updateForm("instagram", v)}
+                placeholder="@"
+              />
+            )}
 
-            <Input
-              label="Date of birth"
-              type="date"
-              value={form.date_of_birth}
-              onChange={(v) => updateForm("date_of_birth", v)}
-            />
+            {config.about.fields.date_of_birth && (
+              <Input
+                label="Date of birth"
+                type="date"
+                value={form.date_of_birth}
+                onChange={(v) => updateForm("date_of_birth", v)}
+              />
+            )}
 
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700">
-                Gender
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {["Male", "Female", "Non-binary", "Prefer not to say"].map(
-                  (g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => updateForm("gender", g)}
-                      className={`px-4 py-2 rounded-full text-sm border transition-colors ${
-                        form.gender === g
-                          ? "bg-nice-black text-white border-nice-black"
-                          : "border-nice-border text-gray-600 hover:border-gray-400"
-                      }`}
-                    >
-                      {g}
-                    </button>
-                  )
-                )}
+            {config.about.fields.gender && (
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700">
+                  Gender
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {["Male", "Female", "Non-binary", "Prefer not to say"].map(
+                    (g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => updateForm("gender", g)}
+                        className={`px-4 py-2 rounded-full text-sm border transition-colors ${
+                          form.gender === g
+                            ? "bg-nice-black text-white border-nice-black"
+                            : "border-nice-border text-gray-600 hover:border-gray-400"
+                        }`}
+                      >
+                        {g}
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -474,60 +530,78 @@ export default function SubmissionForm() {
             <div>
               <h2 className="text-xl font-semibold mb-1">Measurements</h2>
               <p className="text-gray-400 text-sm">
-                Approximate is fine — no need to be exact.
+                Approximate is fine - no need to be exact.
               </p>
             </div>
 
-            <Input
-              label="Height (cm)"
-              type="number"
-              value={form.height_cm}
-              onChange={(v) => updateForm("height_cm", v)}
-              placeholder="e.g. 175"
-            />
-
-            <div className="grid grid-cols-3 gap-3">
+            {config.measurements.fields.height_cm && (
               <Input
-                label="Bust (cm)"
+                label="Height (cm)"
                 type="number"
-                value={form.bust_cm}
-                onChange={(v) => updateForm("bust_cm", v)}
+                value={form.height_cm}
+                onChange={(v) => updateForm("height_cm", v)}
+                placeholder="e.g. 175"
               />
-              <Input
-                label="Waist (cm)"
-                type="number"
-                value={form.waist_cm}
-                onChange={(v) => updateForm("waist_cm", v)}
-              />
-              <Input
-                label="Hips (cm)"
-                type="number"
-                value={form.hips_cm}
-                onChange={(v) => updateForm("hips_cm", v)}
-              />
-            </div>
+            )}
 
-            <Input
-              label="Shoe size (AU)"
-              value={form.shoe_size}
-              onChange={(v) => updateForm("shoe_size", v)}
-              placeholder="e.g. 9"
-            />
+            {(config.measurements.fields.bust_cm || config.measurements.fields.waist_cm || config.measurements.fields.hips_cm) && (
+              <div className="grid grid-cols-3 gap-3">
+                {config.measurements.fields.bust_cm && (
+                  <Input
+                    label="Bust (cm)"
+                    type="number"
+                    value={form.bust_cm}
+                    onChange={(v) => updateForm("bust_cm", v)}
+                  />
+                )}
+                {config.measurements.fields.waist_cm && (
+                  <Input
+                    label="Waist (cm)"
+                    type="number"
+                    value={form.waist_cm}
+                    onChange={(v) => updateForm("waist_cm", v)}
+                  />
+                )}
+                {config.measurements.fields.hips_cm && (
+                  <Input
+                    label="Hips (cm)"
+                    type="number"
+                    value={form.hips_cm}
+                    onChange={(v) => updateForm("hips_cm", v)}
+                  />
+                )}
+              </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-3">
+            {config.measurements.fields.shoe_size && (
               <Input
-                label="Hair colour"
-                value={form.hair_color}
-                onChange={(v) => updateForm("hair_color", v)}
-                placeholder="e.g. Brown"
+                label="Shoe size (AU)"
+                value={form.shoe_size}
+                onChange={(v) => updateForm("shoe_size", v)}
+                placeholder="e.g. 9"
               />
-              <Input
-                label="Eye colour"
-                value={form.eye_color}
-                onChange={(v) => updateForm("eye_color", v)}
-                placeholder="e.g. Blue"
-              />
-            </div>
+            )}
+
+            {(config.measurements.fields.hair_color || config.measurements.fields.eye_color) && (
+              <div className="grid grid-cols-2 gap-3">
+                {config.measurements.fields.hair_color && (
+                  <Input
+                    label="Hair colour"
+                    value={form.hair_color}
+                    onChange={(v) => updateForm("hair_color", v)}
+                    placeholder="e.g. Brown"
+                  />
+                )}
+                {config.measurements.fields.eye_color && (
+                  <Input
+                    label="Eye colour"
+                    value={form.eye_color}
+                    onChange={(v) => updateForm("eye_color", v)}
+                    placeholder="e.g. Blue"
+                  />
+                )}
+              </div>
+            )}
           </div>
         )}
 

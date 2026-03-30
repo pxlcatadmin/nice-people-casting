@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,6 +61,32 @@ export async function POST(request: NextRequest) {
         { error: "Failed to submit. Please try again." },
         { status: 500 }
       );
+    }
+
+    // Send email notification (non-blocking - don't fail the submission if email fails)
+    try {
+      const name = `${body.first_name} ${body.last_name}`.trim();
+      await resend.emails.send({
+        from: "Nice People Casting <onboarding@resend.dev>",
+        to: "info@nicepeople.au",
+        subject: `New application - ${name}`,
+        html: `
+          <h2>New casting application</h2>
+          <p><strong>Job:</strong> ${jobSlug}</p>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${body.email || "-"}</p>
+          <p><strong>Phone:</strong> ${body.phone || "-"}</p>
+          <p><strong>Instagram:</strong> ${body.instagram || "-"}</p>
+          <p><strong>Gender:</strong> ${body.gender || "-"}</p>
+          <p><strong>Experience:</strong> ${body.experience_level || "-"}</p>
+          <p><strong>Digis:</strong> ${(body.digis || []).length} photos</p>
+          <p><strong>Portfolio:</strong> ${(body.portfolio || []).length} photos</p>
+          <br>
+          <p><a href="https://casting.nicepeople.au/admin">View in admin</a></p>
+        `,
+      });
+    } catch (emailError) {
+      console.error("Email notification failed:", emailError);
     }
 
     return NextResponse.json({ success: true });

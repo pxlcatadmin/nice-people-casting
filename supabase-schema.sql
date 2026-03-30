@@ -9,7 +9,7 @@ CREATE TABLE jobs (
   description TEXT DEFAULT '',
   status TEXT DEFAULT 'open' CHECK (status IN ('open', 'closed')),
   shoot_date DATE,
-  asset_config JSONB DEFAULT '{"digis":{"enabled":true,"required":true,"min":4,"max":8},"portfolio":{"enabled":true,"required":false,"max":10},"self_tape":{"enabled":false,"required":false}}'::jsonb,
+  asset_config JSONB DEFAULT '{"digis":{"enabled":true,"required":true,"min":4,"max":8},"portfolio":{"enabled":true,"required":false,"max":10},"self_tape":{"enabled":false,"required":false},"measurements":{"enabled":true,"fields":{"height_cm":true,"bust_cm":true,"waist_cm":true,"hips_cm":true,"shoe_size":true,"hair_color":true,"eye_color":true}},"about":{"fields":{"phone":true,"instagram":true,"date_of_birth":true,"gender":true}},"experience":{"enabled":true}}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
