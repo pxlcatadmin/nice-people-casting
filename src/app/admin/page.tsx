@@ -3,6 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 
+interface FieldConfig {
+  enabled: boolean;
+  required: boolean;
+}
+
 interface AssetConfig {
   digis: { enabled: boolean; required: boolean; min: number; max: number };
   portfolio: { enabled: boolean; required: boolean; max: number };
@@ -10,25 +15,27 @@ interface AssetConfig {
   measurements: {
     enabled: boolean;
     fields: {
-      height_cm: boolean;
-      bust_cm: boolean;
-      waist_cm: boolean;
-      hips_cm: boolean;
-      shoe_size: boolean;
-      hair_color: boolean;
-      eye_color: boolean;
+      height_cm: FieldConfig;
+      bust_cm: FieldConfig;
+      waist_cm: FieldConfig;
+      hips_cm: FieldConfig;
+      shoe_size: FieldConfig;
+      hair_color: FieldConfig;
+      eye_color: FieldConfig;
     };
   };
   about: {
     fields: {
-      phone: boolean;
-      instagram: boolean;
-      date_of_birth: boolean;
-      gender: boolean;
+      phone: FieldConfig;
+      instagram: FieldConfig;
+      date_of_birth: FieldConfig;
+      gender: FieldConfig;
     };
   };
   experience: { enabled: boolean };
 }
+
+const f = (enabled = true, required = false): FieldConfig => ({ enabled, required });
 
 const DEFAULT_ASSET_CONFIG: AssetConfig = {
   digis: { enabled: true, required: true, min: 4, max: 8 },
@@ -36,29 +43,53 @@ const DEFAULT_ASSET_CONFIG: AssetConfig = {
   self_tape: { enabled: false, required: false },
   measurements: {
     enabled: true,
-    fields: { height_cm: true, bust_cm: true, waist_cm: true, hips_cm: true, shoe_size: true, hair_color: true, eye_color: true },
+    fields: { height_cm: f(), bust_cm: f(), waist_cm: f(), hips_cm: f(), shoe_size: f(), hair_color: f(), eye_color: f() },
   },
   about: {
-    fields: { phone: true, instagram: true, date_of_birth: true, gender: true },
+    fields: { phone: f(), instagram: f(), date_of_birth: f(), gender: f() },
   },
   experience: { enabled: true },
 };
 
+// Normalize a field value - handles backward compat with old boolean format
+function normalizeField(val: unknown, def: FieldConfig): FieldConfig {
+  if (typeof val === "boolean") return { enabled: val, required: false };
+  if (val && typeof val === "object") return { enabled: (val as FieldConfig).enabled ?? def.enabled, required: (val as FieldConfig).required ?? def.required };
+  return def;
+}
+
 // Merge partial config from DB with defaults for backward compat
-function mergeConfig(raw: Partial<AssetConfig> | undefined): AssetConfig {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mergeConfig(raw: any): AssetConfig {
   if (!raw) return DEFAULT_ASSET_CONFIG;
+  const r = raw as Partial<AssetConfig>;
+  const rawMF = (r.measurements as Record<string, unknown>)?.fields as Record<string, unknown> | undefined;
+  const rawAF = (r.about as Record<string, unknown>)?.fields as Record<string, unknown> | undefined;
   return {
-    digis: { ...DEFAULT_ASSET_CONFIG.digis, ...raw.digis },
-    portfolio: { ...DEFAULT_ASSET_CONFIG.portfolio, ...raw.portfolio },
-    self_tape: { ...DEFAULT_ASSET_CONFIG.self_tape, ...raw.self_tape },
+    digis: { ...DEFAULT_ASSET_CONFIG.digis, ...r.digis },
+    portfolio: { ...DEFAULT_ASSET_CONFIG.portfolio, ...r.portfolio },
+    self_tape: { ...DEFAULT_ASSET_CONFIG.self_tape, ...r.self_tape },
     measurements: {
-      enabled: raw.measurements?.enabled ?? true,
-      fields: { ...DEFAULT_ASSET_CONFIG.measurements.fields, ...raw.measurements?.fields },
+      enabled: (r.measurements as { enabled?: boolean })?.enabled ?? true,
+      fields: {
+        height_cm: normalizeField(rawMF?.height_cm, DEFAULT_ASSET_CONFIG.measurements.fields.height_cm),
+        bust_cm: normalizeField(rawMF?.bust_cm, DEFAULT_ASSET_CONFIG.measurements.fields.bust_cm),
+        waist_cm: normalizeField(rawMF?.waist_cm, DEFAULT_ASSET_CONFIG.measurements.fields.waist_cm),
+        hips_cm: normalizeField(rawMF?.hips_cm, DEFAULT_ASSET_CONFIG.measurements.fields.hips_cm),
+        shoe_size: normalizeField(rawMF?.shoe_size, DEFAULT_ASSET_CONFIG.measurements.fields.shoe_size),
+        hair_color: normalizeField(rawMF?.hair_color, DEFAULT_ASSET_CONFIG.measurements.fields.hair_color),
+        eye_color: normalizeField(rawMF?.eye_color, DEFAULT_ASSET_CONFIG.measurements.fields.eye_color),
+      },
     },
     about: {
-      fields: { ...DEFAULT_ASSET_CONFIG.about.fields, ...raw.about?.fields },
+      fields: {
+        phone: normalizeField(rawAF?.phone, DEFAULT_ASSET_CONFIG.about.fields.phone),
+        instagram: normalizeField(rawAF?.instagram, DEFAULT_ASSET_CONFIG.about.fields.instagram),
+        date_of_birth: normalizeField(rawAF?.date_of_birth, DEFAULT_ASSET_CONFIG.about.fields.date_of_birth),
+        gender: normalizeField(rawAF?.gender, DEFAULT_ASSET_CONFIG.about.fields.gender),
+      },
     },
-    experience: { enabled: raw.experience?.enabled ?? true },
+    experience: { enabled: (r.experience as { enabled?: boolean })?.enabled ?? true },
   };
 }
 
@@ -98,6 +129,9 @@ export default function AdminDashboard() {
   const [removeBrief, setRemoveBrief] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [createError, setCreateError] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [editError, setEditError] = useState("");
 
   const fetchJobs = useCallback(async () => {
     const res = await fetch("/api/admin/jobs");
@@ -129,52 +163,72 @@ export default function AdminDashboard() {
 
   const createJob = async () => {
     if (!newJobTitle.trim()) return;
+    setCreating(true);
+    setCreateError("");
 
-    const formData = new FormData();
-    formData.append("title", newJobTitle);
-    formData.append("description", newJobDesc);
-    if (newShootDate) formData.append("shoot_date", newShootDate);
-    formData.append("asset_config", JSON.stringify(newAssetConfig));
-    if (newBriefFile) formData.append("brief", newBriefFile);
+    try {
+      const formData = new FormData();
+      formData.append("title", newJobTitle);
+      formData.append("description", newJobDesc);
+      if (newShootDate) formData.append("shoot_date", newShootDate);
+      formData.append("asset_config", JSON.stringify(newAssetConfig));
+      if (newBriefFile) formData.append("brief", newBriefFile);
 
-    const res = await fetch("/api/admin/jobs", {
-      method: "POST",
-      body: formData,
-    });
+      const res = await fetch("/api/admin/jobs", {
+        method: "POST",
+        body: formData,
+      });
 
-    if (res.ok) {
-      setNewJobTitle("");
-      setNewJobDesc("");
-      setNewShootDate("");
-      setNewAssetConfig(DEFAULT_ASSET_CONFIG);
-      setNewBriefFile(null);
-      setShowNewJob(false);
-      fetchJobs();
+      if (res.ok) {
+        setNewJobTitle("");
+        setNewJobDesc("");
+        setNewShootDate("");
+        setNewAssetConfig(DEFAULT_ASSET_CONFIG);
+        setNewBriefFile(null);
+        setShowNewJob(false);
+        setCreateError("");
+        fetchJobs();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setCreateError(data.error || "Failed to create. Try a different title.");
+      }
+    } catch {
+      setCreateError("Network error. Please try again.");
     }
+    setCreating(false);
   };
 
   const updateJob = async () => {
     if (!editingJob || !editTitle.trim()) return;
+    setEditError("");
 
-    const formData = new FormData();
-    formData.append("id", editingJob.id);
-    formData.append("title", editTitle);
-    formData.append("description", editDesc);
-    formData.append("shoot_date", editShootDate || "");
-    formData.append("asset_config", JSON.stringify(editAssetConfig));
-    if (editBriefFile) formData.append("brief", editBriefFile);
-    if (removeBrief) formData.append("remove_brief", "true");
+    try {
+      const formData = new FormData();
+      formData.append("id", editingJob.id);
+      formData.append("title", editTitle);
+      formData.append("description", editDesc);
+      formData.append("shoot_date", editShootDate || "");
+      formData.append("asset_config", JSON.stringify(editAssetConfig));
+      if (editBriefFile) formData.append("brief", editBriefFile);
+      if (removeBrief) formData.append("remove_brief", "true");
 
-    const res = await fetch("/api/admin/jobs", {
-      method: "PATCH",
-      body: formData,
-    });
+      const res = await fetch("/api/admin/jobs", {
+        method: "PATCH",
+        body: formData,
+      });
 
-    if (res.ok) {
-      setEditingJob(null);
-      setEditBriefFile(null);
-      setRemoveBrief(false);
-      fetchJobs();
+      if (res.ok) {
+        setEditingJob(null);
+        setEditBriefFile(null);
+        setRemoveBrief(false);
+        setEditError("");
+        fetchJobs();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setEditError(data.error || "Failed to save changes.");
+      }
+    } catch {
+      setEditError("Network error. Please try again.");
     }
   };
 
@@ -256,7 +310,7 @@ export default function AdminDashboard() {
             <span className="text-sm font-medium text-gray-400">Casting</span>
           </div>
           <button
-            onClick={() => setShowNewJob(true)}
+            onClick={() => { setShowNewJob(true); setCreateError(""); }}
             className="px-4 py-2 rounded-full bg-nice-black text-white text-sm font-medium hover:bg-black transition-colors"
           >
             + New callout
@@ -357,11 +411,15 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   onClick={createJob}
-                  className="flex-1 py-2.5 rounded-full bg-nice-black text-white text-sm font-medium hover:bg-black transition-colors"
+                  disabled={creating}
+                  className="flex-1 py-2.5 rounded-full bg-nice-black text-white text-sm font-medium hover:bg-black transition-colors disabled:opacity-50"
                 >
-                  Create
+                  {creating ? "Creating..." : "Create"}
                 </button>
               </div>
+              {createError && (
+                <p className="text-red-500 text-sm">{createError}</p>
+              )}
             </div>
           </div>
         )}
@@ -466,6 +524,9 @@ export default function AdminDashboard() {
                   Save
                 </button>
               </div>
+              {editError && (
+                <p className="text-red-500 text-sm">{editError}</p>
+              )}
             </div>
           </div>
         )}
@@ -641,24 +702,37 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   );
 }
 
-function FieldToggle({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
+function FieldToggle({ label, field, onToggle, onRequiredToggle }: { label: string; field: FieldConfig; onToggle: () => void; onRequiredToggle: () => void }) {
   return (
-    <label className="flex items-center justify-between py-1.5 cursor-pointer">
-      <span className="text-xs text-gray-500">{label}</span>
-      <button
-        type="button"
-        onClick={onToggle}
-        className={`w-7 h-4 rounded-full transition-colors relative flex-shrink-0 ${
-          on ? "bg-nice-black" : "bg-gray-200"
-        }`}
-      >
-        <div
-          className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-transform ${
-            on ? "translate-x-3" : "translate-x-0.5"
+    <div className="flex items-center justify-between py-1.5">
+      <span className={`text-xs ${field.enabled ? "text-gray-500" : "text-gray-300"}`}>{label}</span>
+      <div className="flex items-center gap-2.5">
+        {field.enabled && (
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={field.required}
+              onChange={onRequiredToggle}
+              className="rounded w-3 h-3"
+            />
+            <span className="text-[10px] text-gray-400">Req</span>
+          </label>
+        )}
+        <button
+          type="button"
+          onClick={onToggle}
+          className={`w-7 h-4 rounded-full transition-colors relative flex-shrink-0 ${
+            field.enabled ? "bg-nice-black" : "bg-gray-200"
           }`}
-        />
-      </button>
-    </label>
+        >
+          <div
+            className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-transform ${
+              field.enabled ? "translate-x-3" : "translate-x-0.5"
+            }`}
+          />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -678,23 +752,27 @@ function AssetConfigEditor({
           <p className="text-xs text-gray-400 mb-2">Name and email are always required</p>
           <FieldToggle
             label="Phone"
-            on={config.about.fields.phone}
-            onToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, phone: !config.about.fields.phone } } })}
+            field={config.about.fields.phone}
+            onToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, phone: { ...config.about.fields.phone, enabled: !config.about.fields.phone.enabled } } } })}
+            onRequiredToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, phone: { ...config.about.fields.phone, required: !config.about.fields.phone.required } } } })}
           />
           <FieldToggle
             label="Instagram"
-            on={config.about.fields.instagram}
-            onToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, instagram: !config.about.fields.instagram } } })}
+            field={config.about.fields.instagram}
+            onToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, instagram: { ...config.about.fields.instagram, enabled: !config.about.fields.instagram.enabled } } } })}
+            onRequiredToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, instagram: { ...config.about.fields.instagram, required: !config.about.fields.instagram.required } } } })}
           />
           <FieldToggle
             label="Date of birth"
-            on={config.about.fields.date_of_birth}
-            onToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, date_of_birth: !config.about.fields.date_of_birth } } })}
+            field={config.about.fields.date_of_birth}
+            onToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, date_of_birth: { ...config.about.fields.date_of_birth, enabled: !config.about.fields.date_of_birth.enabled } } } })}
+            onRequiredToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, date_of_birth: { ...config.about.fields.date_of_birth, required: !config.about.fields.date_of_birth.required } } } })}
           />
           <FieldToggle
             label="Gender"
-            on={config.about.fields.gender}
-            onToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, gender: !config.about.fields.gender } } })}
+            field={config.about.fields.gender}
+            onToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, gender: { ...config.about.fields.gender, enabled: !config.about.fields.gender.enabled } } } })}
+            onRequiredToggle={() => onChange({ ...config, about: { ...config.about, fields: { ...config.about.fields, gender: { ...config.about.fields.gender, required: !config.about.fields.gender.required } } } })}
           />
         </div>
       </div>
@@ -715,38 +793,45 @@ function AssetConfigEditor({
               <div className="mt-2 pl-11 space-y-1">
                 <FieldToggle
                   label="Height"
-                  on={config.measurements.fields.height_cm}
-                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, height_cm: !config.measurements.fields.height_cm } } })}
+                  field={config.measurements.fields.height_cm}
+                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, height_cm: { ...config.measurements.fields.height_cm, enabled: !config.measurements.fields.height_cm.enabled } } } })}
+                  onRequiredToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, height_cm: { ...config.measurements.fields.height_cm, required: !config.measurements.fields.height_cm.required } } } })}
                 />
                 <FieldToggle
                   label="Bust"
-                  on={config.measurements.fields.bust_cm}
-                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, bust_cm: !config.measurements.fields.bust_cm } } })}
+                  field={config.measurements.fields.bust_cm}
+                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, bust_cm: { ...config.measurements.fields.bust_cm, enabled: !config.measurements.fields.bust_cm.enabled } } } })}
+                  onRequiredToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, bust_cm: { ...config.measurements.fields.bust_cm, required: !config.measurements.fields.bust_cm.required } } } })}
                 />
                 <FieldToggle
                   label="Waist"
-                  on={config.measurements.fields.waist_cm}
-                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, waist_cm: !config.measurements.fields.waist_cm } } })}
+                  field={config.measurements.fields.waist_cm}
+                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, waist_cm: { ...config.measurements.fields.waist_cm, enabled: !config.measurements.fields.waist_cm.enabled } } } })}
+                  onRequiredToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, waist_cm: { ...config.measurements.fields.waist_cm, required: !config.measurements.fields.waist_cm.required } } } })}
                 />
                 <FieldToggle
                   label="Hips"
-                  on={config.measurements.fields.hips_cm}
-                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, hips_cm: !config.measurements.fields.hips_cm } } })}
+                  field={config.measurements.fields.hips_cm}
+                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, hips_cm: { ...config.measurements.fields.hips_cm, enabled: !config.measurements.fields.hips_cm.enabled } } } })}
+                  onRequiredToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, hips_cm: { ...config.measurements.fields.hips_cm, required: !config.measurements.fields.hips_cm.required } } } })}
                 />
                 <FieldToggle
                   label="Shoe size"
-                  on={config.measurements.fields.shoe_size}
-                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, shoe_size: !config.measurements.fields.shoe_size } } })}
+                  field={config.measurements.fields.shoe_size}
+                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, shoe_size: { ...config.measurements.fields.shoe_size, enabled: !config.measurements.fields.shoe_size.enabled } } } })}
+                  onRequiredToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, shoe_size: { ...config.measurements.fields.shoe_size, required: !config.measurements.fields.shoe_size.required } } } })}
                 />
                 <FieldToggle
                   label="Hair colour"
-                  on={config.measurements.fields.hair_color}
-                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, hair_color: !config.measurements.fields.hair_color } } })}
+                  field={config.measurements.fields.hair_color}
+                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, hair_color: { ...config.measurements.fields.hair_color, enabled: !config.measurements.fields.hair_color.enabled } } } })}
+                  onRequiredToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, hair_color: { ...config.measurements.fields.hair_color, required: !config.measurements.fields.hair_color.required } } } })}
                 />
                 <FieldToggle
                   label="Eye colour"
-                  on={config.measurements.fields.eye_color}
-                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, eye_color: !config.measurements.fields.eye_color } } })}
+                  field={config.measurements.fields.eye_color}
+                  onToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, eye_color: { ...config.measurements.fields.eye_color, enabled: !config.measurements.fields.eye_color.enabled } } } })}
+                  onRequiredToggle={() => onChange({ ...config, measurements: { ...config.measurements, fields: { ...config.measurements.fields, eye_color: { ...config.measurements.fields.eye_color, required: !config.measurements.fields.eye_color.required } } } })}
                 />
               </div>
             )}

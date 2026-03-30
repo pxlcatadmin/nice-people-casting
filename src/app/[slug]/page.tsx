@@ -10,21 +10,26 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+interface FieldConfig {
+  enabled: boolean;
+  required: boolean;
+}
+
 interface MeasurementFields {
-  height_cm: boolean;
-  bust_cm: boolean;
-  waist_cm: boolean;
-  hips_cm: boolean;
-  shoe_size: boolean;
-  hair_color: boolean;
-  eye_color: boolean;
+  height_cm: FieldConfig;
+  bust_cm: FieldConfig;
+  waist_cm: FieldConfig;
+  hips_cm: FieldConfig;
+  shoe_size: FieldConfig;
+  hair_color: FieldConfig;
+  eye_color: FieldConfig;
 }
 
 interface AboutFields {
-  phone: boolean;
-  instagram: boolean;
-  date_of_birth: boolean;
-  gender: boolean;
+  phone: FieldConfig;
+  instagram: FieldConfig;
+  date_of_birth: FieldConfig;
+  gender: FieldConfig;
 }
 
 interface AssetConfig {
@@ -47,19 +52,27 @@ interface JobInfo {
   brief_url: string | null;
 }
 
+const fc = (enabled = true, required = false): FieldConfig => ({ enabled, required });
+
 const DEFAULT_ASSET_CONFIG: AssetConfig = {
   digis: { enabled: true, required: true, min: 4, max: 8 },
   portfolio: { enabled: true, required: false, max: 10 },
   self_tape: { enabled: false, required: false },
   measurements: {
     enabled: true,
-    fields: { height_cm: true, bust_cm: true, waist_cm: true, hips_cm: true, shoe_size: true, hair_color: true, eye_color: true },
+    fields: { height_cm: fc(), bust_cm: fc(), waist_cm: fc(), hips_cm: fc(), shoe_size: fc(), hair_color: fc(), eye_color: fc() },
   },
   about: {
-    fields: { phone: true, instagram: true, date_of_birth: true, gender: true },
+    fields: { phone: fc(), instagram: fc(), date_of_birth: fc(), gender: fc() },
   },
   experience: { enabled: true },
 };
+
+function normalizeField(val: unknown, def: FieldConfig): FieldConfig {
+  if (typeof val === "boolean") return { enabled: val, required: false };
+  if (val && typeof val === "object") return { enabled: (val as FieldConfig).enabled ?? def.enabled, required: (val as FieldConfig).required ?? def.required };
+  return def;
+}
 
 export default function SubmissionForm() {
   const { slug } = useParams();
@@ -122,20 +135,36 @@ export default function SubmissionForm() {
 
   // Merge job config with defaults for backward compatibility with old jobs
   const config = useMemo((): AssetConfig => {
-    const raw = job?.asset_config;
+    const raw = job?.asset_config as Record<string, unknown> | undefined;
     if (!raw) return DEFAULT_ASSET_CONFIG;
+    const r = raw as Partial<AssetConfig>;
+    const rawMF = (r.measurements as Record<string, unknown>)?.fields as Record<string, unknown> | undefined;
+    const rawAF = (r.about as Record<string, unknown>)?.fields as Record<string, unknown> | undefined;
     return {
-      digis: { ...DEFAULT_ASSET_CONFIG.digis, ...raw.digis },
-      portfolio: { ...DEFAULT_ASSET_CONFIG.portfolio, ...raw.portfolio },
-      self_tape: { ...DEFAULT_ASSET_CONFIG.self_tape, ...raw.self_tape },
+      digis: { ...DEFAULT_ASSET_CONFIG.digis, ...r.digis },
+      portfolio: { ...DEFAULT_ASSET_CONFIG.portfolio, ...r.portfolio },
+      self_tape: { ...DEFAULT_ASSET_CONFIG.self_tape, ...r.self_tape },
       measurements: {
-        enabled: raw.measurements?.enabled ?? true,
-        fields: { ...DEFAULT_ASSET_CONFIG.measurements.fields, ...raw.measurements?.fields },
+        enabled: (r.measurements as { enabled?: boolean })?.enabled ?? true,
+        fields: {
+          height_cm: normalizeField(rawMF?.height_cm, DEFAULT_ASSET_CONFIG.measurements.fields.height_cm),
+          bust_cm: normalizeField(rawMF?.bust_cm, DEFAULT_ASSET_CONFIG.measurements.fields.bust_cm),
+          waist_cm: normalizeField(rawMF?.waist_cm, DEFAULT_ASSET_CONFIG.measurements.fields.waist_cm),
+          hips_cm: normalizeField(rawMF?.hips_cm, DEFAULT_ASSET_CONFIG.measurements.fields.hips_cm),
+          shoe_size: normalizeField(rawMF?.shoe_size, DEFAULT_ASSET_CONFIG.measurements.fields.shoe_size),
+          hair_color: normalizeField(rawMF?.hair_color, DEFAULT_ASSET_CONFIG.measurements.fields.hair_color),
+          eye_color: normalizeField(rawMF?.eye_color, DEFAULT_ASSET_CONFIG.measurements.fields.eye_color),
+        },
       },
       about: {
-        fields: { ...DEFAULT_ASSET_CONFIG.about.fields, ...raw.about?.fields },
+        fields: {
+          phone: normalizeField(rawAF?.phone, DEFAULT_ASSET_CONFIG.about.fields.phone),
+          instagram: normalizeField(rawAF?.instagram, DEFAULT_ASSET_CONFIG.about.fields.instagram),
+          date_of_birth: normalizeField(rawAF?.date_of_birth, DEFAULT_ASSET_CONFIG.about.fields.date_of_birth),
+          gender: normalizeField(rawAF?.gender, DEFAULT_ASSET_CONFIG.about.fields.gender),
+        },
       },
-      experience: { enabled: raw.experience?.enabled ?? true },
+      experience: { enabled: (r.experience as { enabled?: boolean })?.enabled ?? true },
     };
   }, [job?.asset_config]);
 
@@ -185,15 +214,36 @@ export default function SubmissionForm() {
 
   const canProceed = () => {
     if (currentStepName === "welcome") return true;
-    if (currentStepName === "about") return form.first_name && form.last_name && form.email;
-    if (currentStepName === "measurements") return true;
+    if (currentStepName === "about") {
+      if (!form.first_name || !form.last_name || !form.email) return false;
+      const af = config.about.fields;
+      if (af.phone.enabled && af.phone.required && !form.phone.trim()) return false;
+      if (af.instagram.enabled && af.instagram.required && !form.instagram.trim()) return false;
+      if (af.date_of_birth.enabled && af.date_of_birth.required && !form.date_of_birth) return false;
+      if (af.gender.enabled && af.gender.required && !form.gender) return false;
+      return true;
+    }
+    if (currentStepName === "measurements") {
+      const mf = config.measurements.fields;
+      if (mf.height_cm.enabled && mf.height_cm.required && !form.height_cm) return false;
+      if (mf.bust_cm.enabled && mf.bust_cm.required && !form.bust_cm) return false;
+      if (mf.waist_cm.enabled && mf.waist_cm.required && !form.waist_cm) return false;
+      if (mf.hips_cm.enabled && mf.hips_cm.required && !form.hips_cm) return false;
+      if (mf.shoe_size.enabled && mf.shoe_size.required && !form.shoe_size.trim()) return false;
+      if (mf.hair_color.enabled && mf.hair_color.required && !form.hair_color.trim()) return false;
+      if (mf.eye_color.enabled && mf.eye_color.required && !form.eye_color.trim()) return false;
+      return true;
+    }
     if (currentStepName === "digis") {
       if (config.digis?.required) {
         return digiFiles.length >= (config.digis?.min || 1);
       }
       return true;
     }
-    if (currentStepName === "portfolio") return true; // always optional to skip
+    if (currentStepName === "portfolio") {
+      if (config.portfolio?.required) return portfolioFiles.length > 0;
+      return true;
+    }
     if (currentStepName === "self_tape") {
       if (config.self_tape?.required) return form.self_tape_url.trim().length > 0;
       return true;
@@ -469,34 +519,37 @@ export default function SubmissionForm() {
               required
             />
 
-            {config.about.fields.phone && (
+            {config.about.fields.phone.enabled && (
               <Input
                 label="Phone"
                 type="tel"
                 value={form.phone}
                 onChange={(v) => updateForm("phone", v)}
+                required={config.about.fields.phone.required}
               />
             )}
 
-            {config.about.fields.instagram && (
+            {config.about.fields.instagram.enabled && (
               <Input
                 label="Instagram handle"
                 value={form.instagram}
                 onChange={(v) => updateForm("instagram", v)}
                 placeholder="@"
+                required={config.about.fields.instagram.required}
               />
             )}
 
-            {config.about.fields.date_of_birth && (
+            {config.about.fields.date_of_birth.enabled && (
               <Input
                 label="Date of birth"
                 type="date"
                 value={form.date_of_birth}
                 onChange={(v) => updateForm("date_of_birth", v)}
+                required={config.about.fields.date_of_birth.required}
               />
             )}
 
-            {config.about.fields.gender && (
+            {config.about.fields.gender.enabled && (
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700">
                   Gender
@@ -534,70 +587,77 @@ export default function SubmissionForm() {
               </p>
             </div>
 
-            {config.measurements.fields.height_cm && (
+            {config.measurements.fields.height_cm.enabled && (
               <Input
                 label="Height (cm)"
                 type="number"
                 value={form.height_cm}
                 onChange={(v) => updateForm("height_cm", v)}
                 placeholder="e.g. 175"
+                required={config.measurements.fields.height_cm.required}
               />
             )}
 
-            {(config.measurements.fields.bust_cm || config.measurements.fields.waist_cm || config.measurements.fields.hips_cm) && (
+            {(config.measurements.fields.bust_cm.enabled || config.measurements.fields.waist_cm.enabled || config.measurements.fields.hips_cm.enabled) && (
               <div className="grid grid-cols-3 gap-3">
-                {config.measurements.fields.bust_cm && (
+                {config.measurements.fields.bust_cm.enabled && (
                   <Input
                     label="Bust (cm)"
                     type="number"
                     value={form.bust_cm}
                     onChange={(v) => updateForm("bust_cm", v)}
+                    required={config.measurements.fields.bust_cm.required}
                   />
                 )}
-                {config.measurements.fields.waist_cm && (
+                {config.measurements.fields.waist_cm.enabled && (
                   <Input
                     label="Waist (cm)"
                     type="number"
                     value={form.waist_cm}
                     onChange={(v) => updateForm("waist_cm", v)}
+                    required={config.measurements.fields.waist_cm.required}
                   />
                 )}
-                {config.measurements.fields.hips_cm && (
+                {config.measurements.fields.hips_cm.enabled && (
                   <Input
                     label="Hips (cm)"
                     type="number"
                     value={form.hips_cm}
                     onChange={(v) => updateForm("hips_cm", v)}
+                    required={config.measurements.fields.hips_cm.required}
                   />
                 )}
               </div>
             )}
 
-            {config.measurements.fields.shoe_size && (
+            {config.measurements.fields.shoe_size.enabled && (
               <Input
                 label="Shoe size (AU)"
                 value={form.shoe_size}
                 onChange={(v) => updateForm("shoe_size", v)}
                 placeholder="e.g. 9"
+                required={config.measurements.fields.shoe_size.required}
               />
             )}
 
-            {(config.measurements.fields.hair_color || config.measurements.fields.eye_color) && (
+            {(config.measurements.fields.hair_color.enabled || config.measurements.fields.eye_color.enabled) && (
               <div className="grid grid-cols-2 gap-3">
-                {config.measurements.fields.hair_color && (
+                {config.measurements.fields.hair_color.enabled && (
                   <Input
                     label="Hair colour"
                     value={form.hair_color}
                     onChange={(v) => updateForm("hair_color", v)}
                     placeholder="e.g. Brown"
+                    required={config.measurements.fields.hair_color.required}
                   />
                 )}
-                {config.measurements.fields.eye_color && (
+                {config.measurements.fields.eye_color.enabled && (
                   <Input
                     label="Eye colour"
                     value={form.eye_color}
                     onChange={(v) => updateForm("eye_color", v)}
                     placeholder="e.g. Blue"
+                    required={config.measurements.fields.eye_color.required}
                   />
                 )}
               </div>
