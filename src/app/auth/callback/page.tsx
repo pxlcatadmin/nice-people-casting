@@ -99,6 +99,9 @@ export default function AuthCallback() {
 
         if (profile) {
           sessionStorage.setItem("np_autofill", JSON.stringify(profile));
+        } else {
+          // First-timer who clicked sign in - pass their ID and email so the form knows they're authenticated
+          sessionStorage.setItem("np_autofill", JSON.stringify({ id: userId, email: userEmail }));
         }
 
         // Clean up and redirect back to the form

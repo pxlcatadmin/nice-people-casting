@@ -395,6 +395,32 @@ export default function SubmissionForm() {
       }
 
       if (data.submission_id) setSubmissionId(data.submission_id);
+
+      // If user is signed in, auto-save their profile so they don't need to sign in again
+      if (profileId) {
+        supabase.from("profiles").upsert({
+          id: profileId,
+          email: form.email,
+          first_name: form.first_name,
+          last_name: form.last_name,
+          phone: form.phone,
+          instagram: form.instagram,
+          date_of_birth: form.date_of_birth || null,
+          gender: form.gender,
+          height_cm: form.height_cm ? parseInt(form.height_cm) : null,
+          bust_cm: form.bust_cm ? parseInt(form.bust_cm) : null,
+          waist_cm: form.waist_cm ? parseInt(form.waist_cm) : null,
+          hips_cm: form.hips_cm ? parseInt(form.hips_cm) : null,
+          shoe_size: form.shoe_size,
+          hair_color: form.hair_color,
+          eye_color: form.eye_color,
+          experience_level: form.experience_level,
+          experience_notes: form.experience_notes,
+          saved_digis: allDigiUrls,
+          updated_at: new Date().toISOString(),
+        }).then(() => {}); // fire and forget
+      }
+
       setSubmitted(true);
     } catch {
       setError("Network error. Please check your connection and try again.");
