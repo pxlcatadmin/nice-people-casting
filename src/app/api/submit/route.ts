@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert submission - photos already uploaded client-side
-    const { error: insertError } = await supabase.from("submissions").insert({
+    const { data: submission, error: insertError } = await supabase.from("submissions").insert({
       job_id: job.id,
       first_name: body.first_name || "",
       last_name: body.last_name || "",
@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
       portfolio: body.portfolio || [],
       photos: [...(body.digis || []), ...(body.portfolio || [])],
       self_tape_url: body.self_tape_url || "",
-    });
+      profile_id: body.profile_id || null,
+    }).select("id").single();
 
     if (insertError) {
       console.error("Insert error:", insertError);
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
       console.error("Email notification failed:", emailError);
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, submission_id: submission?.id });
   } catch (error) {
     console.error("Submission error:", error);
     return NextResponse.json(

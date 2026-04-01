@@ -71,10 +71,25 @@ export async function POST(request: NextRequest) {
     asset_config = body.asset_config;
   }
 
-  const slug = title
+  let slug = title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+
+  // Check for duplicate slugs and append a number if needed
+  const { data: existing } = await supabase
+    .from("jobs")
+    .select("slug")
+    .like("slug", `${slug}%`);
+
+  if (existing && existing.length > 0) {
+    const existingSlugs = new Set(existing.map((j: { slug: string }) => j.slug));
+    if (existingSlugs.has(slug)) {
+      let counter = 2;
+      while (existingSlugs.has(`${slug}-${counter}`)) counter++;
+      slug = `${slug}-${counter}`;
+    }
+  }
 
   const insertData: Record<string, unknown> = {
     title,

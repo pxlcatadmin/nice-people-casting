@@ -108,10 +108,14 @@ export default function SubmissionForm() {
 
   const [digiFiles, setDigiFiles] = useState<File[]>([]);
   const [digiPreviews, setDigiPreviews] = useState<string[]>([]);
+  const [savedDigiUrls, setSavedDigiUrls] = useState<string[]>([]);
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
   const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([]);
   const digiInputRef = useRef<HTMLInputElement>(null);
   const portfolioInputRef = useRef<HTMLInputElement>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [uploadedDigiUrls, setUploadedDigiUrls] = useState<string[]>([]);
 
   const [form, setForm] = useState({
     first_name: "",
@@ -132,6 +136,42 @@ export default function SubmissionForm() {
     experience_notes: "",
     self_tape_url: "",
   });
+
+  // Check for autofill data from Google sign-in
+  useEffect(() => {
+    const autofill = sessionStorage.getItem("np_autofill");
+    if (autofill) {
+      sessionStorage.removeItem("np_autofill");
+      const p = JSON.parse(autofill);
+      setProfileId(p.id);
+      setForm((prev) => ({
+        ...prev,
+        first_name: p.first_name || prev.first_name,
+        last_name: p.last_name || prev.last_name,
+        email: p.email || prev.email,
+        phone: p.phone || prev.phone,
+        instagram: p.instagram || prev.instagram,
+        date_of_birth: p.date_of_birth || prev.date_of_birth,
+        gender: p.gender || prev.gender,
+        height_cm: p.height_cm ? String(p.height_cm) : prev.height_cm,
+        bust_cm: p.bust_cm ? String(p.bust_cm) : prev.bust_cm,
+        waist_cm: p.waist_cm ? String(p.waist_cm) : prev.waist_cm,
+        hips_cm: p.hips_cm ? String(p.hips_cm) : prev.hips_cm,
+        shoe_size: p.shoe_size || prev.shoe_size,
+        hair_color: p.hair_color || prev.hair_color,
+        eye_color: p.eye_color || prev.eye_color,
+        experience_level: p.experience_level || prev.experience_level,
+        experience_notes: p.experience_notes || prev.experience_notes,
+      }));
+      // Pre-load saved digis
+      if (p.saved_digis && p.saved_digis.length > 0) {
+        setSavedDigiUrls(p.saved_digis);
+        setDigiPreviews(p.saved_digis);
+      }
+      // Skip to About You step (step 2)
+      setStep(2);
+    }
+  }, []);
 
   // Merge job config with defaults for backward compatibility with old jobs
   const config = useMemo((): AssetConfig => {
@@ -189,14 +229,23 @@ export default function SubmissionForm() {
   const handleDigis = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const max = config.digis?.max || 8;
-    const newFiles = [...digiFiles, ...files].slice(0, max);
+    const available = max - savedDigiUrls.length;
+    const newFiles = [...digiFiles, ...files].slice(0, available);
     setDigiFiles(newFiles);
-    setDigiPreviews(newFiles.map((f) => URL.createObjectURL(f)));
+    setDigiPreviews([...savedDigiUrls, ...newFiles.map((f) => URL.createObjectURL(f))]);
   };
 
   const removeDigis = (index: number) => {
-    setDigiFiles((prev) => prev.filter((_, i) => i !== index));
-    setDigiPreviews((prev) => prev.filter((_, i) => i !== index));
+    if (index < savedDigiUrls.length) {
+      // Removing a saved digi
+      setSavedDigiUrls((prev) => prev.filter((_, i) => i !== index));
+      setDigiPreviews((prev) => prev.filter((_, i) => i !== index));
+    } else {
+      // Removing a newly added file
+      const fileIndex = index - savedDigiUrls.length;
+      setDigiFiles((prev) => prev.filter((_, i) => i !== fileIndex));
+      setDigiPreviews((prev) => prev.filter((_, i) => i !== index));
+    }
   };
 
   const handlePortfolio = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,7 +285,7 @@ export default function SubmissionForm() {
     }
     if (currentStepName === "digis") {
       if (config.digis?.required) {
-        return digiFiles.length >= (config.digis?.min || 1);
+        return (digiFiles.length + savedDigiUrls.length) >= (config.digis?.min || 1);
       }
       return true;
     }
@@ -306,7 +355,7 @@ export default function SubmissionForm() {
     try {
       const totalFiles = digiFiles.length + portfolioFiles.length;
       if (totalFiles > 0) {
-        setSubmitProgress(`Uploading ${totalFiles} photo${totalFiles !== 1 ? "s" : ""}...`);
+        setSubmitProgress(`Uploading ${totalFiles} new photo${totalFiles !== 1 ? "s" : ""}...`);
       }
 
       // Upload all photos in parallel for speed
@@ -315,8 +364,12 @@ export default function SubmissionForm() {
         Promise.all(portfolioFiles.map((f) => uploadFileToStorage(f, "portfolio"))),
       ]);
 
-      const digiUrls = digiResults.filter(Boolean) as string[];
+      const newDigiUrls = digiResults.filter(Boolean) as string[];
       const portfolioUrls = portfolioResults.filter(Boolean) as string[];
+
+      // Combine saved digi URLs (from profile) with newly uploaded ones
+      const allDigiUrls = [...savedDigiUrls, ...newDigiUrls];
+      setUploadedDigiUrls(allDigiUrls);
 
       setSubmitProgress("Saving your application...");
 
@@ -327,8 +380,9 @@ export default function SubmissionForm() {
         body: JSON.stringify({
           job_slug: slug,
           ...form,
-          digis: digiUrls,
+          digis: allDigiUrls,
           portfolio: portfolioUrls,
+          profile_id: profileId || undefined,
         }),
       });
 
@@ -340,6 +394,7 @@ export default function SubmissionForm() {
         return;
       }
 
+      if (data.submission_id) setSubmissionId(data.submission_id);
       setSubmitted(true);
     } catch {
       setError("Network error. Please check your connection and try again.");
@@ -424,6 +479,39 @@ export default function SubmissionForm() {
           We&apos;ve received your submission. If you&apos;re selected,
           we&apos;ll be in touch via email or Instagram.
         </p>
+
+        {!profileId && (
+          <div className="mt-8 w-full max-w-sm">
+            <p className="text-gray-400 text-xs text-center mb-3">
+              Save your details for next time - no re-typing, no re-uploading photos.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                const profileData = {
+                  ...form,
+                  digis: uploadedDigiUrls,
+                };
+                localStorage.setItem("np_auth_action", "save_profile");
+                localStorage.setItem("np_profile_data", JSON.stringify(profileData));
+                if (submissionId) localStorage.setItem("np_submission_id", submissionId);
+                supabase.auth.signInWithOAuth({
+                  provider: "google",
+                  options: { redirectTo: `${window.location.origin}/auth/callback` },
+                });
+              }}
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-full border border-nice-border text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A11.96 11.96 0 001 12c0 1.94.46 3.77 1.18 5.39l3.66-2.84z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+              Save profile with Google
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -495,6 +583,29 @@ export default function SubmissionForm() {
                 Let&apos;s start with the basics.
               </p>
             </div>
+
+            {!profileId && (
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem("np_auth_action", "autofill");
+                  localStorage.setItem("np_auth_return", slug as string);
+                  supabase.auth.signInWithOAuth({
+                    provider: "google",
+                    options: { redirectTo: `${window.location.origin}/auth/callback` },
+                  });
+                }}
+                className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-lg border border-nice-border text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A11.96 11.96 0 001 12c0 1.94.46 3.77 1.18 5.39l3.66-2.84z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                </svg>
+                Already applied? Sign in to autofill
+              </button>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <Input
@@ -715,7 +826,7 @@ export default function SubmissionForm() {
                 </div>
               ))}
 
-              {digiFiles.length < (config.digis?.max || 8) && (
+              {(digiFiles.length + savedDigiUrls.length) < (config.digis?.max || 8) && (
                 <button
                   type="button"
                   onClick={() => digiInputRef.current?.click()}
