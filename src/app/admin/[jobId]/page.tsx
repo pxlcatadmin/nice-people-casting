@@ -61,6 +61,11 @@ export default function JobReview() {
   const [viewMode, setViewMode] = useState<ViewMode>("slideshow");
   const [filterStatus, setFilterStatus] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareLinks, setShareLinks] = useState<{ id: string; token: string; client_name: string; is_active: boolean; allow_selections: boolean; selection_count: number; created_at: string }[]>([]);
+  const [newClientName, setNewClientName] = useState("");
+  const [newAllowSelections, setNewAllowSelections] = useState(true);
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
 
   const fetchJob = useCallback(async () => {
     const res = await fetch("/api/admin/jobs");
@@ -140,6 +145,46 @@ export default function JobReview() {
     if (res.ok) {
       setJob({ ...job, status: newStatus });
     }
+  };
+
+  const fetchShareLinks = async () => {
+    const res = await fetch(`/api/admin/share-links?job_id=${jobId}`);
+    if (res.ok) setShareLinks(await res.json());
+  };
+
+  const createShareLink = async () => {
+    const res = await fetch("/api/admin/share-links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_id: jobId, client_name: newClientName, allow_selections: newAllowSelections }),
+    });
+    if (res.ok) {
+      setNewClientName("");
+      setNewAllowSelections(true);
+      fetchShareLinks();
+    }
+  };
+
+  const toggleShareLink = async (id: string, is_active: boolean) => {
+    await fetch("/api/admin/share-links", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, is_active: !is_active }),
+    });
+    fetchShareLinks();
+  };
+
+  const deleteShareLink = async (id: string) => {
+    if (!confirm("Delete this share link? The client will lose access.")) return;
+    await fetch(`/api/admin/share-links?id=${id}`, { method: "DELETE" });
+    fetchShareLinks();
+  };
+
+  const copyShareLink = (link: { id: string; token: string }) => {
+    const url = `${window.location.origin}/s/${link.token}`;
+    navigator.clipboard.writeText(url);
+    setCopiedLinkId(link.id);
+    setTimeout(() => setCopiedLinkId(null), 2000);
   };
 
   // Get photos for the current tab
@@ -336,6 +381,17 @@ export default function JobReview() {
                 ))}
               </div>
 
+              {submissions.some((s) => s.status === "shortlisted") && (
+                <button
+                  onClick={() => { setShowShareModal(true); fetchShareLinks(); }}
+                  className="px-3 sm:px-4 py-1.5 rounded-lg border border-nice-border text-xs sm:text-sm font-medium hover:border-gray-400 transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                  <span className="hidden sm:inline">Share</span>
+                </button>
+              )}
               <button
                 onClick={exportCSV}
                 className="px-3 sm:px-4 py-1.5 rounded-lg border border-nice-border text-xs sm:text-sm font-medium hover:border-gray-400 transition-colors hidden sm:block"
@@ -724,6 +780,93 @@ export default function JobReview() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowShareModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold">Share Shortlist</h2>
+                <button onClick={() => setShowShareModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Create new link */}
+              <div className="mb-6 p-4 bg-nice-gray rounded-xl">
+                <p className="text-sm text-gray-500 mb-3">Create a link to share your shortlisted talent with a client.</p>
+                <input
+                  type="text"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder="Client name (optional)"
+                  className="w-full px-3 py-2.5 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 mb-3"
+                />
+                <label className="flex items-center gap-2 text-sm text-gray-600 mb-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newAllowSelections}
+                    onChange={(e) => setNewAllowSelections(e.target.checked)}
+                    className="rounded"
+                  />
+                  Allow client to select favorites
+                </label>
+                <button
+                  onClick={createShareLink}
+                  className="w-full py-2.5 rounded-full bg-nice-black text-white text-sm font-medium hover:bg-black transition-colors"
+                >
+                  Create Link
+                </button>
+              </div>
+
+              {/* Existing links */}
+              {shareLinks.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Active links</p>
+                  {shareLinks.map((link) => (
+                    <div key={link.id} className={`p-4 rounded-xl border transition-colors ${link.is_active ? "border-nice-border" : "border-nice-border bg-gray-50 opacity-60"}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">{link.client_name || "Unnamed link"}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${link.is_active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"}`}>
+                          {link.is_active ? "Active" : "Revoked"}
+                        </span>
+                      </div>
+                      {link.selection_count > 0 && (
+                        <p className="text-xs text-gray-400 mb-2">{link.selection_count} talent selected by client</p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => copyShareLink(link)}
+                          className="flex-1 py-1.5 rounded-lg border border-nice-border text-xs font-medium hover:border-gray-400 transition-colors"
+                        >
+                          {copiedLinkId === link.id ? "Copied!" : "Copy link"}
+                        </button>
+                        <button
+                          onClick={() => toggleShareLink(link.id, link.is_active)}
+                          className="py-1.5 px-3 rounded-lg border border-nice-border text-xs font-medium hover:border-gray-400 transition-colors"
+                        >
+                          {link.is_active ? "Revoke" : "Reactivate"}
+                        </button>
+                        <button
+                          onClick={() => deleteShareLink(link.id)}
+                          className="py-1.5 px-3 rounded-lg text-xs text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
