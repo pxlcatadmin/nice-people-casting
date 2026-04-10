@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { EMAIL_SIGNATURE } from "@/lib/email-signature";
+import { generateAgreementPdf } from "@/lib/generate-agreement-pdf";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     // Find the job
     const { data: job, error: jobError } = await supabase
       .from("jobs")
-      .select("id")
+      .select("id, type")
       .eq("slug", jobSlug)
       .eq("status", "open")
       .single();
@@ -30,6 +31,8 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    const isRegistration = job.type === "registration";
 
     // Insert submission - photos already uploaded client-side
     const { data: submission, error: insertError } = await supabase.from("submissions").insert({
@@ -74,9 +77,9 @@ export async function POST(request: NextRequest) {
       await resend.emails.send({
         from: "Nice People Casting <onboarding@resend.dev>",
         to: "info@nicepeople.au",
-        subject: `New application - ${name}`,
+        subject: isRegistration ? `New talent registration - ${name}` : `New application - ${name}`,
         html: `
-          <h2>New casting application</h2>
+          <h2>${isRegistration ? "New talent registration" : "New casting application"}</h2>
           <p><strong>Job:</strong> ${jobSlug}</p>
           <p><strong>Name:</strong> ${name}</p>
           <p><strong>Email:</strong> ${body.email || "-"}</p>
@@ -86,6 +89,12 @@ export async function POST(request: NextRequest) {
           <p><strong>Experience:</strong> ${body.experience_level || "-"}</p>
           <p><strong>Digis:</strong> ${(body.digis || []).length} photos</p>
           <p><strong>Portfolio:</strong> ${(body.portfolio || []).length} photos</p>
+          ${isRegistration && body.registration_data ? `
+            <hr style="margin: 16px 0; border: none; border-top: 1px solid #e5e5e5;">
+            <p><strong>Agreement signed:</strong> ${body.registration_data.agreement_signed ? "Yes" : "No"}</p>
+            <p><strong>Signature:</strong> ${body.registration_data.agreement_signature || "-"}</p>
+            <p><strong>Code of conduct:</strong> ${body.registration_data.code_of_conduct_agreed ? "Agreed" : "Not agreed"}</p>
+          ` : ""}
           <br>
           <p><a href="https://casting.nicepeople.au/admin">View in admin</a></p>
         `,
@@ -94,8 +103,67 @@ export async function POST(request: NextRequest) {
       console.error("Admin email notification failed:", emailError);
     }
 
-    // Applicant thank-you email (only for signed-in users with a Google account)
-    if (body.profile_id && body.email) {
+    // Registration welcome email with signed agreement PDF
+    if (isRegistration && body.email && body.registration_data) {
+      try {
+        const pdfBuffer = generateAgreementPdf({
+          performerName: name,
+          signedAt: body.registration_data.agreement_signed_at || new Date().toISOString(),
+          signature: body.registration_data.agreement_signature || name,
+        });
+
+        // Upload PDF to Supabase storage for records
+        const pdfFileName = `agreements/${jobSlug}/${name.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.pdf`;
+        await supabase.storage
+          .from("submissions")
+          .upload(pdfFileName, pdfBuffer, { contentType: "application/pdf" });
+
+        const { data: { publicUrl: pdfUrl } } = supabase.storage.from("submissions").getPublicUrl(pdfFileName);
+
+        // Store PDF URL on the submission
+        await supabase
+          .from("submissions")
+          .update({ registration_data: { ...body.registration_data, agreement_pdf_url: pdfUrl } })
+          .eq("id", submission?.id);
+
+        await resend.emails.send({
+          from: "Nice People Casting <onboarding@resend.dev>",
+          to: body.email,
+          subject: "Welcome to Nice People",
+          attachments: [
+            {
+              filename: `Nice People - Talent Agreement - ${name}.pdf`,
+              content: pdfBuffer.toString("base64"),
+            },
+          ],
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px;">
+              <p style="font-size: 16px; color: #333;">Hey ${body.first_name || "there"},</p>
+              <p style="font-size: 15px; color: #555; line-height: 1.6;">
+                Welcome to Nice People - we're really excited to have you on board.
+              </p>
+              <p style="font-size: 15px; color: #555; line-height: 1.6;">
+                Here's what happens next: our team will get you set up in our system, add you to the website and share your profile on our Instagram. We'd recommend adding <strong>@nicepeople.au</strong> to your bio - talent with agency tags tend to get booked more frequently.
+              </p>
+              <p style="font-size: 15px; color: #555; line-height: 1.6;">
+                One of our agents will reach out shortly to set up a group chat with you. This is your direct line to us - it's where we'll send you casting opportunities, confirm bookings, and handle any day-to-day comms.
+              </p>
+              <p style="font-size: 15px; color: #555; line-height: 1.6;">
+                Your signed talent agreement is attached to this email for your records.
+              </p>
+              <p style="font-size: 15px; color: #555; line-height: 1.6;">
+                Looking forward to working with you.
+              </p>
+              ${EMAIL_SIGNATURE}
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        console.error("Registration welcome email failed:", emailError);
+      }
+    }
+    // Casting applicant thank-you email (only for signed-in users with a Google account)
+    else if (!isRegistration && body.profile_id && body.email) {
       try {
         await resend.emails.send({
           from: "Nice People Casting <onboarding@resend.dev>",
