@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { EMAIL_SIGNATURE } from "@/lib/email-signature";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
       photos: [...(body.digis || []), ...(body.portfolio || [])],
       self_tape_url: body.self_tape_url || "",
       profile_id: body.profile_id || null,
+      registration_data: body.registration_data || null,
     }).select("id").single();
 
     if (insertError) {
@@ -64,9 +66,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send email notification (non-blocking - don't fail the submission if email fails)
+    // Send email notifications (non-blocking)
+    const name = `${body.first_name} ${body.last_name}`.trim();
+
+    // Admin notification
     try {
-      const name = `${body.first_name} ${body.last_name}`.trim();
       await resend.emails.send({
         from: "Nice People Casting <onboarding@resend.dev>",
         to: "info@nicepeople.au",
@@ -87,7 +91,32 @@ export async function POST(request: NextRequest) {
         `,
       });
     } catch (emailError) {
-      console.error("Email notification failed:", emailError);
+      console.error("Admin email notification failed:", emailError);
+    }
+
+    // Applicant thank-you email (only for signed-in users with a Google account)
+    if (body.profile_id && body.email) {
+      try {
+        await resend.emails.send({
+          from: "Nice People Casting <onboarding@resend.dev>",
+          to: body.email,
+          subject: "Thanks for applying!",
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px;">
+              <p style="font-size: 16px; color: #333;">Hey ${body.first_name || "there"},</p>
+              <p style="font-size: 15px; color: #555; line-height: 1.6;">
+                Thanks for submitting your application! Our casting team will review your details and be in touch if you're a match.
+              </p>
+              <p style="font-size: 15px; color: #555; line-height: 1.6;">
+                Since you're signed in with Google, your details are saved to your profile. Next time you apply, just sign in and everything will be pre-filled for you.
+              </p>
+              ${EMAIL_SIGNATURE}
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        console.error("Applicant thank-you email failed:", emailError);
+      }
     }
 
     return NextResponse.json({ success: true, submission_id: submission?.id });

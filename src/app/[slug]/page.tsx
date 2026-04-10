@@ -47,6 +47,7 @@ interface JobInfo {
   slug: string;
   description: string;
   status: string;
+  type: string;
   asset_config: AssetConfig;
   shoot_date: string | null;
   brief_url: string | null;
@@ -137,6 +138,38 @@ export default function SubmissionForm() {
     self_tape_url: "",
   });
 
+  const [reg, setReg] = useState({
+    address: "",
+    weight: "",
+    pants_size: "",
+    top_size: "",
+    hair_length: "",
+    inseam: "",
+    languages: "",
+    special_talents: "",
+    notable_clients: "",
+    availability: "",
+    social_tiktok: "",
+    emergency_contact_name: "",
+    emergency_contact_relationship: "",
+    emergency_contact_phone: "",
+    abn: "",
+    tfn: "",
+    bank_name: "",
+    bank_bsb: "",
+    bank_account: "",
+    how_heard: "",
+    code_of_conduct_agreed: false,
+    agreement_signed: false,
+    agreement_signature: "",
+  });
+
+  const updateReg = (field: string, value: string | boolean) => {
+    setReg((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const isRegistration = job?.type === "registration";
+
   // Check for autofill data from Google sign-in
   useEffect(() => {
     const autofill = sessionStorage.getItem("np_autofill");
@@ -208,8 +241,11 @@ export default function SubmissionForm() {
     };
   }, [job?.asset_config]);
 
-  // Build dynamic steps - welcome is always first, about is always second
+  // Build dynamic steps
   const steps = useMemo(() => {
+    if (isRegistration) {
+      return ["welcome", "about", "measurements_reg", "digis", "experience_reg", "emergency", "payment", "code_of_conduct", "agreement"];
+    }
     const s: string[] = ["welcome", "about"];
     if (config.measurements.enabled) s.push("measurements");
     if (config.digis.enabled) s.push("digis");
@@ -217,7 +253,7 @@ export default function SubmissionForm() {
     if (config.self_tape.enabled) s.push("self_tape");
     if (config.experience.enabled) s.push("experience");
     return s;
-  }, [config]);
+  }, [config, isRegistration]);
 
   const TOTAL_STEPS = steps.length;
   const currentStepName = steps[step - 1];
@@ -265,6 +301,10 @@ export default function SubmissionForm() {
     if (currentStepName === "welcome") return true;
     if (currentStepName === "about") {
       if (!form.first_name || !form.last_name || !form.email) return false;
+      if (isRegistration) {
+        if (!form.phone.trim() || !reg.address.trim() || !form.date_of_birth || !form.gender) return false;
+        return true;
+      }
       const af = config.about.fields;
       if (af.phone.enabled && af.phone.required && !form.phone.trim()) return false;
       if (af.instagram.enabled && af.instagram.required && !form.instagram.trim()) return false;
@@ -297,13 +337,33 @@ export default function SubmissionForm() {
       if (config.self_tape?.required) return form.self_tape_url.trim().length > 0;
       return true;
     }
+    if (currentStepName === "measurements_reg") {
+      return !!form.height_cm && !!form.hair_color.trim() && !!form.eye_color.trim() && !!form.shoe_size.trim();
+    }
+    if (currentStepName === "experience_reg") {
+      return true; // all optional
+    }
+    if (currentStepName === "emergency") {
+      return !!reg.emergency_contact_name.trim() && !!reg.emergency_contact_phone.trim() && !!reg.emergency_contact_relationship.trim();
+    }
+    if (currentStepName === "payment") {
+      return !!reg.bank_name.trim() && !!reg.bank_bsb.trim() && !!reg.bank_account.trim();
+    }
+    if (currentStepName === "code_of_conduct") {
+      return reg.code_of_conduct_agreed;
+    }
+    if (currentStepName === "agreement") {
+      return reg.agreement_signed && reg.agreement_signature.trim().length > 0;
+    }
     return true;
   };
 
   const getButtonLabel = () => {
-    if (step === TOTAL_STEPS) return submitting ? "Submitting..." : "Submit application";
+    if (step === TOTAL_STEPS) return submitting ? "Submitting..." : isRegistration ? "Submit registration" : "Submit application";
     if (currentStepName === "portfolio" && portfolioFiles.length === 0) return "Skip";
     if (currentStepName === "self_tape" && !config.self_tape?.required && !form.self_tape_url.trim()) return "Skip";
+    if (currentStepName === "code_of_conduct") return "I agree";
+    if (currentStepName === "agreement") return "Sign and submit";
     return "Continue";
   };
 
@@ -374,16 +434,47 @@ export default function SubmissionForm() {
       setSubmitProgress("Saving your application...");
 
       // Send just the data + URLs to the API (no files)
+      const submitBody: Record<string, unknown> = {
+        job_slug: slug,
+        ...form,
+        digis: allDigiUrls,
+        portfolio: portfolioUrls,
+        profile_id: profileId || undefined,
+      };
+
+      if (isRegistration) {
+        submitBody.registration_data = {
+          address: reg.address,
+          weight: reg.weight,
+          pants_size: reg.pants_size,
+          top_size: reg.top_size,
+          hair_length: reg.hair_length,
+          inseam: reg.inseam,
+          languages: reg.languages,
+          special_talents: reg.special_talents,
+          notable_clients: reg.notable_clients,
+          availability: reg.availability,
+          social_tiktok: reg.social_tiktok,
+          emergency_contact_name: reg.emergency_contact_name,
+          emergency_contact_relationship: reg.emergency_contact_relationship,
+          emergency_contact_phone: reg.emergency_contact_phone,
+          abn: reg.abn,
+          tfn: reg.tfn,
+          bank_name: reg.bank_name,
+          bank_bsb: reg.bank_bsb,
+          bank_account: reg.bank_account,
+          how_heard: reg.how_heard,
+          code_of_conduct_agreed: reg.code_of_conduct_agreed,
+          agreement_signed: reg.agreement_signed,
+          agreement_signature: reg.agreement_signature,
+          agreement_signed_at: new Date().toISOString(),
+        };
+      }
+
       const res = await fetch("/api/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          job_slug: slug,
-          ...form,
-          digis: allDigiUrls,
-          portfolio: portfolioUrls,
-          profile_id: profileId || undefined,
-        }),
+        body: JSON.stringify(submitBody),
       });
 
       const data = await res.json();
@@ -398,7 +489,15 @@ export default function SubmissionForm() {
 
       // If user is signed in, auto-save their profile so they don't need to sign in again
       if (profileId) {
-        supabase.from("profiles").upsert({
+        // Check if this is a new profile (first-timer who signed in on welcome step)
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", profileId)
+          .single();
+        const isNewProfile = !existingProfile;
+
+        await supabase.from("profiles").upsert({
           id: profileId,
           email: form.email,
           first_name: form.first_name,
@@ -418,7 +517,16 @@ export default function SubmissionForm() {
           experience_notes: form.experience_notes,
           saved_digis: allDigiUrls,
           updated_at: new Date().toISOString(),
-        }).then(() => {}); // fire and forget
+        });
+
+        // Send welcome email for first-time profile creation
+        if (isNewProfile) {
+          fetch("/api/welcome-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: form.email, first_name: form.first_name }),
+          }).catch(() => {});
+        }
       }
 
       setSubmitted(true);
@@ -499,11 +607,12 @@ export default function SubmissionForm() {
           unoptimized
         />
         <h1 className="text-2xl font-semibold text-center mb-3">
-          Thanks for applying!
+          {isRegistration ? "Registration complete!" : "Thanks for applying!"}
         </h1>
         <p className="text-gray-500 text-center max-w-sm">
-          We&apos;ve received your submission. If you&apos;re selected,
-          we&apos;ll be in touch via email or Instagram.
+          {isRegistration
+            ? "Welcome to Nice People. We've received your registration and will be in touch shortly."
+            : "We've received your submission. If you're selected, we'll be in touch via email or Instagram."}
         </p>
 
         {!profileId && (
@@ -656,37 +765,47 @@ export default function SubmissionForm() {
               required
             />
 
-            {config.about.fields.phone.enabled && (
+            {(isRegistration || config.about.fields.phone.enabled) && (
               <Input
                 label="Phone"
                 type="tel"
                 value={form.phone}
                 onChange={(v) => updateForm("phone", v)}
-                required={config.about.fields.phone.required}
+                required={isRegistration || config.about.fields.phone.required}
               />
             )}
 
-            {config.about.fields.instagram.enabled && (
+            {isRegistration && (
+              <Input
+                label="Address"
+                value={reg.address}
+                onChange={(v) => updateReg("address", v)}
+                placeholder="Full address"
+                required
+              />
+            )}
+
+            {(isRegistration || config.about.fields.instagram.enabled) && (
               <Input
                 label="Instagram handle"
                 value={form.instagram}
                 onChange={(v) => updateForm("instagram", v)}
                 placeholder="@"
-                required={config.about.fields.instagram.required}
+                required={isRegistration || config.about.fields.instagram.required}
               />
             )}
 
-            {config.about.fields.date_of_birth.enabled && (
+            {(isRegistration || config.about.fields.date_of_birth.enabled) && (
               <Input
                 label="Date of birth"
                 type="date"
                 value={form.date_of_birth}
                 onChange={(v) => updateForm("date_of_birth", v)}
-                required={config.about.fields.date_of_birth.required}
+                required={isRegistration || config.about.fields.date_of_birth.required}
               />
             )}
 
-            {config.about.fields.gender.enabled && (
+            {(isRegistration || config.about.fields.gender.enabled) && (
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-700">
                   Gender
@@ -1062,6 +1181,452 @@ export default function SubmissionForm() {
                 rows={4}
                 className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 resize-none"
               />
+            </div>
+          </div>
+        )}
+
+        {/* Registration: Measurements */}
+        {currentStepName === "measurements_reg" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Measurements</h2>
+              <p className="text-gray-400 text-sm">
+                We need accurate measurements for client briefs and wardrobe fitting.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Height (cm)"
+                type="number"
+                value={form.height_cm}
+                onChange={(v) => updateForm("height_cm", v)}
+                placeholder="e.g. 175"
+                required
+              />
+              <Input
+                label="Weight (kg)"
+                type="number"
+                value={reg.weight}
+                onChange={(v) => updateReg("weight", v)}
+                placeholder="e.g. 65"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <Input
+                label="Bust (cm)"
+                type="number"
+                value={form.bust_cm}
+                onChange={(v) => updateForm("bust_cm", v)}
+              />
+              <Input
+                label="Waist (cm)"
+                type="number"
+                value={form.waist_cm}
+                onChange={(v) => updateForm("waist_cm", v)}
+              />
+              <Input
+                label="Hips (cm)"
+                type="number"
+                value={form.hips_cm}
+                onChange={(v) => updateForm("hips_cm", v)}
+              />
+            </div>
+
+            <Input
+              label="Inseam (cm)"
+              type="number"
+              value={reg.inseam}
+              onChange={(v) => updateReg("inseam", v)}
+              placeholder="e.g. 80"
+            />
+
+            <div className="grid grid-cols-3 gap-3">
+              <Input
+                label="Pants size"
+                value={reg.pants_size}
+                onChange={(v) => updateReg("pants_size", v)}
+                placeholder="e.g. 30"
+              />
+              <Input
+                label="Top size"
+                value={reg.top_size}
+                onChange={(v) => updateReg("top_size", v)}
+                placeholder="e.g. M"
+              />
+              <Input
+                label="Shoe size (AU)"
+                value={form.shoe_size}
+                onChange={(v) => updateForm("shoe_size", v)}
+                placeholder="e.g. 9"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Hair colour"
+                value={form.hair_color}
+                onChange={(v) => updateForm("hair_color", v)}
+                placeholder="e.g. Brown"
+                required
+              />
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700">
+                  Hair length
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {["Short", "Medium", "Long"].map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => updateReg("hair_length", l)}
+                      className={`px-3 py-2 rounded-full text-sm border transition-colors ${
+                        reg.hair_length === l
+                          ? "bg-nice-black text-white border-nice-black"
+                          : "border-nice-border text-gray-600 hover:border-gray-400"
+                      }`}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <Input
+              label="Eye colour"
+              value={form.eye_color}
+              onChange={(v) => updateForm("eye_color", v)}
+              placeholder="e.g. Blue"
+              required
+            />
+          </div>
+        )}
+
+        {/* Registration: Experience */}
+        {currentStepName === "experience_reg" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Experience & details</h2>
+              <p className="text-gray-400 text-sm">
+                Tell us about your experience and how to find you online.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-700">
+                Experience level
+              </label>
+              <div className="space-y-2">
+                {[
+                  { value: "none", label: "No experience - this is new for me" },
+                  { value: "some", label: "A little - done a few shoots or projects" },
+                  { value: "experienced", label: "Experienced - regular work in modelling/acting" },
+                  { value: "professional", label: "Professional - this is my career" },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => updateForm("experience_level", value)}
+                    className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors ${
+                      form.experience_level === value
+                        ? "bg-nice-black text-white border-nice-black"
+                        : "border-nice-border text-gray-600 hover:border-gray-400"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Input
+              label="Notable clients or brands"
+              value={reg.notable_clients}
+              onChange={(v) => updateReg("notable_clients", v)}
+              placeholder="e.g. Nike, Bonds, Country Road"
+            />
+
+            <Input
+              label="Languages spoken"
+              value={reg.languages}
+              onChange={(v) => updateReg("languages", v)}
+              placeholder="e.g. English, Italian"
+            />
+
+            <Input
+              label="Special talents"
+              value={reg.special_talents}
+              onChange={(v) => updateReg("special_talents", v)}
+              placeholder="e.g. Dancing, surfing, skateboarding"
+            />
+
+            <Input
+              label="TikTok handle"
+              value={reg.social_tiktok}
+              onChange={(v) => updateReg("social_tiktok", v)}
+              placeholder="@"
+            />
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-700">
+                Availability
+              </label>
+              <textarea
+                value={reg.availability}
+                onChange={(e) => updateReg("availability", e.target.value)}
+                placeholder="Any dates you're unavailable, or restrictions on your schedule..."
+                rows={3}
+                className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 resize-none"
+              />
+            </div>
+
+            <Input
+              label="How did you hear about Nice People?"
+              value={reg.how_heard}
+              onChange={(v) => updateReg("how_heard", v)}
+              placeholder="e.g. Instagram, referral, Google"
+            />
+          </div>
+        )}
+
+        {/* Registration: Emergency Contact */}
+        {currentStepName === "emergency" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Emergency contact</h2>
+              <p className="text-gray-400 text-sm">
+                Someone we can contact in case of an emergency on set.
+              </p>
+            </div>
+
+            <Input
+              label="Contact name"
+              value={reg.emergency_contact_name}
+              onChange={(v) => updateReg("emergency_contact_name", v)}
+              required
+            />
+
+            <Input
+              label="Relationship"
+              value={reg.emergency_contact_relationship}
+              onChange={(v) => updateReg("emergency_contact_relationship", v)}
+              placeholder="e.g. Partner, parent, friend"
+              required
+            />
+
+            <Input
+              label="Phone number"
+              type="tel"
+              value={reg.emergency_contact_phone}
+              onChange={(v) => updateReg("emergency_contact_phone", v)}
+              required
+            />
+          </div>
+        )}
+
+        {/* Registration: Payment Details */}
+        {currentStepName === "payment" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Payment details</h2>
+              <p className="text-gray-400 text-sm">
+                So we can pay you. These details are kept confidential and only used for payment processing.
+              </p>
+            </div>
+
+            <Input
+              label="ABN"
+              value={reg.abn}
+              onChange={(v) => updateReg("abn", v)}
+              placeholder="11 digit ABN"
+            />
+
+            <Input
+              label="TFN"
+              value={reg.tfn}
+              onChange={(v) => updateReg("tfn", v)}
+              placeholder="Tax file number"
+            />
+
+            <div className="pt-2">
+              <p className="text-sm font-medium text-gray-700 mb-3">Bank details</p>
+              <div className="space-y-3">
+                <Input
+                  label="Bank name"
+                  value={reg.bank_name}
+                  onChange={(v) => updateReg("bank_name", v)}
+                  placeholder="e.g. Commonwealth Bank"
+                  required
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="BSB"
+                    value={reg.bank_bsb}
+                    onChange={(v) => updateReg("bank_bsb", v)}
+                    placeholder="e.g. 063-000"
+                    required
+                  />
+                  <Input
+                    label="Account number"
+                    value={reg.bank_account}
+                    onChange={(v) => updateReg("bank_account", v)}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Registration: Code of Conduct */}
+        {currentStepName === "code_of_conduct" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Code of Conduct</h2>
+              <p className="text-gray-400 text-sm">
+                Please read our code of conduct carefully. By proceeding you agree to uphold these standards.
+              </p>
+            </div>
+
+            <div className="space-y-5 text-sm text-gray-600 leading-relaxed max-h-[50vh] overflow-y-auto pr-2">
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">1. Punctuality & Reliability</h3>
+                <p>Arrive on time to all bookings, call times, castings, and meetings. If unforeseen circumstances arise, communicate with Nice People Management as soon as possible. Repeated tardiness or no-shows may affect future booking opportunities and could result in termination of representation.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">2. Professional Presence</h3>
+                <p>You are representing yourself and Nice People Management at every job. Please present yourself in a professional and respectful manner at all times. This includes appropriate grooming, clean digitals, and maintaining a professional social media presence.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">3. Clear Communication</h3>
+                <p>Respond to calls, texts, and emails from your booker promptly. If you are unavailable for a period, let your booker know in advance. Communication is key to a successful working relationship.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">4. Preparation and Awareness</h3>
+                <p>Read and understand your call sheet before arriving on set. Know the location, wardrobe brief, call time, and any special requirements. Being informed shows professionalism and respect for everyone on set.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">5. A Culture of Respect</h3>
+                <p>Treat all crew, clients, and fellow talent with kindness and professionalism. Nice People has zero tolerance for discrimination, harassment, or bullying. If you experience or witness inappropriate behaviour on set, please report it to your booker immediately.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">6. Your Wellbeing is the Priority</h3>
+                <p>You should never feel pressured into anything that makes you uncomfortable. If at any point during a job you feel unsafe or unsure, contact your booker immediately. Your safety comes first, always.</p>
+              </div>
+            </div>
+
+            <label className="flex items-start gap-3 cursor-pointer pt-2">
+              <input
+                type="checkbox"
+                checked={reg.code_of_conduct_agreed}
+                onChange={(e) => updateReg("code_of_conduct_agreed", e.target.checked)}
+                className="mt-0.5 w-5 h-5 rounded border-nice-border text-nice-black focus:ring-0 accent-nice-black"
+              />
+              <span className="text-sm text-gray-700">
+                I have read and agree to the Nice People Code of Conduct
+              </span>
+            </label>
+          </div>
+        )}
+
+        {/* Registration: Talent Agreement */}
+        {currentStepName === "agreement" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Talent Agreement</h2>
+              <p className="text-gray-400 text-sm">
+                Please review the agreement below and sign to complete your registration.
+              </p>
+            </div>
+
+            <div className="space-y-4 text-sm text-gray-600 leading-relaxed max-h-[40vh] overflow-y-auto pr-2 border border-nice-border rounded-lg p-4">
+              <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Nice People Management - Talent Agreement</p>
+
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">1. Background</h3>
+                <p>Nice People Management is a talent management agency that connects performers with opportunities in commercial, editorial, film, and digital content. This Agreement outlines the working relationship between Nice People and the Performer.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">2. Services</h3>
+                <p>Nice People will act as the Performer&apos;s non-exclusive management agency, sourcing and facilitating bookings, casting opportunities, and industry introductions on behalf of the Performer.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">3. Term</h3>
+                <p>This Agreement is ongoing and may be terminated by either party with 14 days written notice. Upon termination, any outstanding obligations, including payment for completed work, remain enforceable.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">4. Payment & Commission</h3>
+                <p>Nice People charges a 30% commission (inclusive of GST) on all bookings procured through Nice People. Payment to the Performer will be made within a reasonable time of Nice People receiving payment from the client. Payment terms and invoicing instructions will be provided as needed.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">5. Image & Likeness</h3>
+                <p>The Performer grants Nice People permission to use their name, image, and portfolio for promotional and casting purposes. This includes use on the Nice People website, social media, and in materials shared with prospective clients. Usage beyond these purposes requires Performer consent.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">6. Non-Exclusivity</h3>
+                <p>This Agreement is non-exclusive. The Performer may engage other agencies or accept direct bookings. However, if a booking is sourced through Nice People, Nice People&apos;s commission terms apply.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">7. Non-Solicitation</h3>
+                <p>During the term of this Agreement and for a period of 6 months after termination, the Performer agrees not to directly solicit or accept repeat work from clients introduced through Nice People without Nice People&apos;s involvement.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">8. Confidentiality</h3>
+                <p>Both parties agree to keep confidential any commercially sensitive information shared in the course of this relationship, including but not limited to client details, rates, and internal business processes.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">9. Intellectual Property</h3>
+                <p>Unless otherwise agreed, the intellectual property of content created during a booking belongs to the client or as stipulated in the booking agreement. Performers retain the right to use content for their personal portfolio unless restricted by the client&apos;s usage agreement.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">10. Return of Property</h3>
+                <p>Upon termination, each party must return any property, materials, or confidential documents belonging to the other.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">11. Independent Contractor</h3>
+                <p>The Performer is engaged as an independent contractor, not an employee. The Performer is responsible for their own tax obligations and insurance.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">12. Professional Conduct</h3>
+                <p>The Performer agrees to conduct themselves professionally at all times and to adhere to the Nice People Code of Conduct. Breaches of conduct may result in termination of this Agreement.</p>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-1">13. Model Safety & Consent</h3>
+                <p>Nice People is committed to the safety of its talent. Performers are encouraged to speak up if they feel uncomfortable, unsafe, or are asked to do anything outside the scope of the agreed brief. Nice People will advocate on the Performer&apos;s behalf in all situations.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-2">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={reg.agreement_signed}
+                  onChange={(e) => updateReg("agreement_signed", e.target.checked)}
+                  className="mt-0.5 w-5 h-5 rounded border-nice-border text-nice-black focus:ring-0 accent-nice-black"
+                />
+                <span className="text-sm text-gray-700">
+                  I have read and agree to the Nice People Talent Agreement
+                </span>
+              </label>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-700">
+                  Full legal name (as signature) <span className="text-gray-300 ml-1">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={reg.agreement_signature}
+                  onChange={(e) => updateReg("agreement_signature", e.target.value)}
+                  placeholder="Type your full name to sign"
+                  className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 italic"
+                />
+                <p className="text-xs text-gray-400 mt-1.5">
+                  By typing your name above, you acknowledge this as your electronic signature.
+                </p>
+              </div>
             </div>
           </div>
         )}

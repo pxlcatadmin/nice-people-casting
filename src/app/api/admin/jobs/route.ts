@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
   const contentType = request.headers.get("content-type") || "";
 
   let title: string;
+  let type: string = "casting";
   let description: string;
   let shoot_date: string | null;
   let asset_config: unknown;
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
   if (contentType.includes("multipart/form-data")) {
     const formData = await request.formData();
     title = formData.get("title") as string;
+    type = (formData.get("type") as string) || "casting";
     description = (formData.get("description") as string) || "";
     shoot_date = (formData.get("shoot_date") as string) || null;
     asset_config = formData.get("asset_config") ? JSON.parse(formData.get("asset_config") as string) : undefined;
@@ -66,6 +68,7 @@ export async function POST(request: NextRequest) {
   } else {
     const body = await request.json();
     title = body.title;
+    type = body.type || "casting";
     description = body.description || "";
     shoot_date = body.shoot_date || null;
     asset_config = body.asset_config;
@@ -93,6 +96,7 @@ export async function POST(request: NextRequest) {
 
   const insertData: Record<string, unknown> = {
     title,
+    type,
     slug,
     description,
     shoot_date,

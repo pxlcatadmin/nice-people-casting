@@ -67,6 +67,15 @@ export default function AuthCallback() {
             console.error("Profile save error:", profileError);
           }
 
+          // Send welcome email for new profiles (fire and forget)
+          try {
+            await fetch("/api/welcome-email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: userEmail, first_name: data.first_name || "" }),
+            });
+          } catch {}
+
           // Link the submission to this profile if we have a submission ID
           const submissionId = localStorage.getItem("np_submission_id");
           if (submissionId) {

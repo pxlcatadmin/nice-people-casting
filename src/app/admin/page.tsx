@@ -99,6 +99,7 @@ interface Job {
   slug: string;
   description: string;
   status: string;
+  type: string;
   asset_config: AssetConfig;
   shoot_date: string | null;
   brief_url: string | null;
@@ -115,6 +116,7 @@ export default function AdminDashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [showNewJob, setShowNewJob] = useState(false);
   const [newJobTitle, setNewJobTitle] = useState("");
+  const [newJobType, setNewJobType] = useState<"casting" | "registration">("casting");
   const [newJobDesc, setNewJobDesc] = useState("");
   const [newShootDate, setNewShootDate] = useState("");
   const [newAssetConfig, setNewAssetConfig] = useState<AssetConfig>(DEFAULT_ASSET_CONFIG);
@@ -169,6 +171,7 @@ export default function AdminDashboard() {
     try {
       const formData = new FormData();
       formData.append("title", newJobTitle);
+      formData.append("type", newJobType);
       formData.append("description", newJobDesc);
       if (newShootDate) formData.append("shoot_date", newShootDate);
       formData.append("asset_config", JSON.stringify(newAssetConfig));
@@ -181,6 +184,7 @@ export default function AdminDashboard() {
 
       if (res.ok) {
         setNewJobTitle("");
+        setNewJobType("casting");
         setNewJobDesc("");
         setNewShootDate("");
         setNewAssetConfig(DEFAULT_ASSET_CONFIG);
@@ -339,12 +343,26 @@ export default function AdminDashboard() {
         {showNewJob && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-6">
             <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-lg font-semibold">New casting callout</h2>
+              <h2 className="text-lg font-semibold">{newJobType === "registration" ? "New talent registration" : "New casting callout"}</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setNewJobType("casting")}
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${newJobType === "casting" ? "bg-nice-black text-white" : "border border-nice-border text-gray-500 hover:border-gray-400"}`}
+                >
+                  Casting
+                </button>
+                <button
+                  onClick={() => setNewJobType("registration")}
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ${newJobType === "registration" ? "bg-nice-black text-white" : "border border-nice-border text-gray-500 hover:border-gray-400"}`}
+                >
+                  Registration
+                </button>
+              </div>
               <input
                 type="text"
                 value={newJobTitle}
                 onChange={(e) => setNewJobTitle(e.target.value)}
-                placeholder="e.g. Summer Campaign 2026"
+                placeholder={newJobType === "registration" ? "e.g. Talent Registration" : "e.g. Summer Campaign 2026"}
                 className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400"
               />
               <textarea
@@ -588,7 +606,12 @@ export default function AdminDashboard() {
                   >
                     <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="font-medium">{job.title}</h3>
+                        <h3 className="font-medium flex items-center gap-2">
+                          {job.title}
+                          {job.type === "registration" && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">Registration</span>
+                          )}
+                        </h3>
                         <p className="text-sm text-gray-400 mt-1">
                           /{job.slug}
                           {job.shoot_date && (

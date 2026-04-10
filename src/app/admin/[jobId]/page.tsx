@@ -29,6 +29,7 @@ interface Submission {
   status: string;
   admin_notes: string;
   created_at: string;
+  registration_data: Record<string, unknown> | null;
 }
 
 interface AssetConfig {
@@ -43,6 +44,7 @@ interface Job {
   slug: string;
   description: string;
   status: string;
+  type: string;
   asset_config: AssetConfig;
 }
 
@@ -638,6 +640,46 @@ export default function JobReview() {
                       <DetailRow label="Digis" value={`${(current.digis || []).length} uploaded`} />
                       <DetailRow label="Portfolio" value={`${(current.portfolio || []).length} uploaded`} />
                     </DetailSection>
+
+                    {current.registration_data && (
+                      <>
+                        <DetailSection title="Registration Details">
+                          <DetailRow label="Address" value={current.registration_data.address as string} />
+                          <DetailRow label="Weight" value={current.registration_data.weight ? `${current.registration_data.weight}kg` : ""} />
+                          <DetailRow label="Pants" value={current.registration_data.pants_size as string} />
+                          <DetailRow label="Top" value={current.registration_data.top_size as string} />
+                          <DetailRow label="Hair length" value={current.registration_data.hair_length as string} />
+                          <DetailRow label="Inseam" value={current.registration_data.inseam ? `${current.registration_data.inseam}cm` : ""} />
+                          <DetailRow label="Languages" value={current.registration_data.languages as string} />
+                          <DetailRow label="Talents" value={current.registration_data.special_talents as string} />
+                          <DetailRow label="Clients" value={current.registration_data.notable_clients as string} />
+                          <DetailRow label="TikTok" value={current.registration_data.social_tiktok as string} />
+                          <DetailRow label="Availability" value={current.registration_data.availability as string} />
+                          <DetailRow label="How heard" value={current.registration_data.how_heard as string} />
+                        </DetailSection>
+
+                        <DetailSection title="Emergency Contact">
+                          <DetailRow label="Name" value={current.registration_data.emergency_contact_name as string} />
+                          <DetailRow label="Relation" value={current.registration_data.emergency_contact_relationship as string} />
+                          <DetailRow label="Phone" value={current.registration_data.emergency_contact_phone as string} />
+                        </DetailSection>
+
+                        <DetailSection title="Payment">
+                          <DetailRow label="ABN" value={current.registration_data.abn as string} />
+                          <DetailRow label="TFN" value={current.registration_data.tfn as string} />
+                          <DetailRow label="Bank" value={current.registration_data.bank_name as string} />
+                          <DetailRow label="BSB" value={current.registration_data.bank_bsb as string} />
+                          <DetailRow label="Account" value={current.registration_data.bank_account as string} />
+                        </DetailSection>
+
+                        <DetailSection title="Agreements">
+                          <DetailRow label="Code of Conduct" value={current.registration_data.code_of_conduct_agreed ? "Agreed" : "Not agreed"} />
+                          <DetailRow label="Contract" value={current.registration_data.agreement_signed ? "Signed" : "Not signed"} />
+                          <DetailRow label="Signature" value={current.registration_data.agreement_signature as string} />
+                          <DetailRow label="Signed at" value={current.registration_data.agreement_signed_at ? new Date(current.registration_data.agreement_signed_at as string).toLocaleDateString("en-AU") : ""} />
+                        </DetailSection>
+                      </>
+                    )}
 
                     <div>
                       <h4 className="font-medium text-gray-700 mb-2">Notes</h4>
