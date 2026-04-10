@@ -421,7 +421,7 @@ export default function JobReview() {
           {/* Desktop: side by side. Mobile: stacked */}
           <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 lg:h-[calc(100vh-120px)]">
             {/* Photo Section */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0">
               {/* Photo tab switcher */}
               <div className="flex gap-1 mb-3">
                 {(["digis", "portfolio", "all"] as PhotoTab[]).map((tab) => {
@@ -453,7 +453,7 @@ export default function JobReview() {
               {currentPhotos.length > 0 ? (
                 <>
                   <div
-                    className="relative rounded-xl overflow-hidden bg-nice-gray aspect-[3/4] sm:aspect-auto sm:flex-1"
+                    className="relative rounded-xl overflow-hidden bg-nice-gray aspect-[3/4] lg:aspect-auto lg:flex-1 lg:min-h-0"
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
                   >
