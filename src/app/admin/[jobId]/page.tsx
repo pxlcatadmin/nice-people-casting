@@ -66,6 +66,7 @@ export default function JobReview() {
   const [newClientName, setNewClientName] = useState("");
   const [newAllowSelections, setNewAllowSelections] = useState(true);
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
+  const [creatingLink, setCreatingLink] = useState(false);
 
   const fetchJob = useCallback(async () => {
     const res = await fetch("/api/admin/jobs");
@@ -94,14 +95,19 @@ export default function JobReview() {
     fetchSubmissions();
   }, [fetchJob, fetchSubmissions]);
 
+  const prevFilterRef = useRef(filterStatus);
   useEffect(() => {
     if (filterStatus === "all") {
       setFiltered(submissions);
     } else {
       setFiltered(submissions.filter((s) => s.status === filterStatus));
     }
-    setCurrentIndex(0);
-    setCurrentPhoto(0);
+    // Only reset position when the filter changes, not when submissions update
+    if (prevFilterRef.current !== filterStatus) {
+      setCurrentIndex(0);
+      setCurrentPhoto(0);
+      prevFilterRef.current = filterStatus;
+    }
   }, [submissions, filterStatus]);
 
   const updateStatus = async (id: string, status: string) => {
@@ -153,6 +159,7 @@ export default function JobReview() {
   };
 
   const createShareLink = async () => {
+    setCreatingLink(true);
     const res = await fetch("/api/admin/share-links", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -161,8 +168,9 @@ export default function JobReview() {
     if (res.ok) {
       setNewClientName("");
       setNewAllowSelections(true);
-      fetchShareLinks();
+      await fetchShareLinks();
     }
+    setCreatingLink(false);
   };
 
   const toggleShareLink = async (id: string, is_active: boolean) => {
@@ -389,7 +397,7 @@ export default function JobReview() {
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                   </svg>
-                  <span className="hidden sm:inline">Share</span>
+                  <span className="hidden sm:inline">Share shortlist</span>
                 </button>
               )}
               <button
@@ -563,10 +571,10 @@ export default function JobReview() {
                         current.status === "shortlisted" ? "new" : "shortlisted"
                       )
                     }
-                    className={`mt-4 w-full py-2.5 rounded-full text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                    className={`mt-4 w-full py-3 rounded-full text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
                       current.status === "shortlisted"
-                        ? "bg-green-500 text-white"
-                        : "border border-nice-border text-gray-500 hover:border-gray-400"
+                        ? "bg-nice-green text-white shadow-[0_0_16px_rgba(34,197,94,0.4)]"
+                        : "bg-nice-black text-white hover:bg-black"
                     }`}
                   >
                     <svg
@@ -818,9 +826,18 @@ export default function JobReview() {
                 </label>
                 <button
                   onClick={createShareLink}
-                  className="w-full py-2.5 rounded-full bg-nice-black text-white text-sm font-medium hover:bg-black transition-colors"
+                  disabled={creatingLink}
+                  className="w-full py-2.5 rounded-full bg-nice-black text-white text-sm font-medium hover:bg-black transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
                 >
-                  Create Link
+                  {creatingLink ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Creating...
+                    </>
+                  ) : "Create Link"}
                 </button>
               </div>
 
