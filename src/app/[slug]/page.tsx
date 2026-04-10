@@ -1571,7 +1571,7 @@ export default function SubmissionForm() {
                     <div className="p-3 bg-nice-gray rounded-lg">
                       <p className="text-xs text-gray-400 mb-1">Representative</p>
                       <p className="font-medium text-gray-800">Nice People Talent Agency</p>
-                      <p className="text-xs text-gray-500">1/38-40 Gale St Brunswick East 3057</p>
+                      <p className="text-xs text-gray-500">732a Sydney Road Brunswick</p>
                     </div>
                   </div>
                 </div>
@@ -1600,8 +1600,8 @@ export default function SubmissionForm() {
                   <p>[e] Unless otherwise stated in the order or agreed by Nice People in writing, payments will be made within 30 days from Invoice date or receipt date, whichever is the latter. In addition, where the supply is on behalf of one of our clients, we shall only pay once we have received the funds from our client. The same principle applies to usage rollover payments.</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[5] Use of Image</h3>
-                  <p>The Performer Representative has the right to use The Performer&apos;s image for promotional purposes on social media and web platforms.</p>
+                  <h3 className="font-semibold text-gray-800 mb-1">[5] Use of Image & Likeness</h3>
+                  <p>The Performer grants Nice People permission to use their name, image, and portfolio for promotional and casting purposes. This includes use on the Nice People website, Nice Paper, social media, and in materials shared with prospective clients. Usage beyond these purposes requires Performer consent.</p>
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-800 mb-1">[6] Non-Exclusivity</h3>
@@ -1635,7 +1635,7 @@ export default function SubmissionForm() {
                 <div>
                   <h3 className="font-semibold text-gray-800 mb-1">[13] Notice</h3>
                   <p>All notices, requests, demands, or other communications required or permitted by the terms of this Agreement will be given in writing and delivered to the Parties at the following addresses:</p>
-                  <p className="mt-1 text-gray-500">Nice People Talent Agency: 1/38-40 Gale St Brunswick East 3057</p>
+                  <p className="mt-1 text-gray-500">Nice People Talent Agency: 732a Sydney Road Brunswick</p>
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-800 mb-1">[14] Indemnification</h3>
