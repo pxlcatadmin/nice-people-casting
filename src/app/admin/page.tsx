@@ -365,56 +365,60 @@ export default function AdminDashboard() {
                 placeholder={newJobType === "registration" ? "e.g. Talent Registration" : "e.g. Summer Campaign 2026"}
                 className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400"
               />
-              <textarea
-                value={newJobDesc}
-                onChange={(e) => setNewJobDesc(e.target.value)}
-                placeholder="Brief description (shown to applicants)"
-                rows={3}
-                className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 resize-none"
-              />
-              <div>
-                <label className="block text-xs font-medium mb-1.5 text-gray-500">Shoot date</label>
-                <input
-                  type="date"
-                  value={newShootDate}
-                  onChange={(e) => setNewShootDate(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium mb-1.5 text-gray-500">Shoot brief (PDF)</label>
-                {newBriefFile ? (
-                  <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-nice-border bg-gray-50">
-                    <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2zm6-10a1 1 0 011 1v4a1 1 0 01-2 0V9a1 1 0 011-1zm0 8a1 1 0 100-2 1 1 0 000 2z" />
-                    </svg>
-                    <span className="text-sm text-gray-600 truncate flex-1">{newBriefFile.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => setNewBriefFile(null)}
-                      className="text-gray-400 hover:text-gray-600 text-sm"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <label className="block w-full px-4 py-3 rounded-lg border border-dashed border-nice-border text-sm text-gray-400 text-center cursor-pointer hover:border-gray-400 transition-colors">
-                    Upload PDF
+              {newJobType === "casting" && (
+                <>
+                  <textarea
+                    value={newJobDesc}
+                    onChange={(e) => setNewJobDesc(e.target.value)}
+                    placeholder="Brief description (shown to applicants)"
+                    rows={3}
+                    className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 resize-none"
+                  />
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5 text-gray-500">Shoot date</label>
                     <input
-                      type="file"
-                      accept=".pdf"
-                      onChange={(e) => setNewBriefFile(e.target.files?.[0] || null)}
-                      className="hidden"
+                      type="date"
+                      value={newShootDate}
+                      onChange={(e) => setNewShootDate(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400"
                     />
-                  </label>
-                )}
-              </div>
+                  </div>
 
-              <AssetConfigEditor
-                config={newAssetConfig}
-                onChange={setNewAssetConfig}
-              />
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5 text-gray-500">Shoot brief (PDF)</label>
+                    {newBriefFile ? (
+                      <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-nice-border bg-gray-50">
+                        <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M4 18h12a2 2 0 002-2V6l-4-4H4a2 2 0 00-2 2v12a2 2 0 002 2zm6-10a1 1 0 011 1v4a1 1 0 01-2 0V9a1 1 0 011-1zm0 8a1 1 0 100-2 1 1 0 000 2z" />
+                        </svg>
+                        <span className="text-sm text-gray-600 truncate flex-1">{newBriefFile.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setNewBriefFile(null)}
+                          className="text-gray-400 hover:text-gray-600 text-sm"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="block w-full px-4 py-3 rounded-lg border border-dashed border-nice-border text-sm text-gray-400 text-center cursor-pointer hover:border-gray-400 transition-colors">
+                        Upload PDF
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => setNewBriefFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  <AssetConfigEditor
+                    config={newAssetConfig}
+                    onChange={setNewAssetConfig}
+                  />
+                </>
+              )}
 
               <div className="flex gap-3">
                 <button
