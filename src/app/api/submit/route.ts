@@ -146,7 +146,10 @@ export async function POST(request: NextRequest) {
                 Here's what happens next: our team will get you set up in our system, add you to the website and share your profile on our Instagram. We'd recommend adding <strong>@nicepeople.au</strong> to your bio - talent with agency tags tend to get booked more frequently.
               </p>
               <p style="font-size: 15px; color: #555; line-height: 1.6;">
-                One of our agents will reach out shortly to set up a group chat with you. This is your direct line to us - it's where we'll send you casting opportunities, confirm bookings, and handle any day-to-day comms.
+                One of our agents will reach out shortly to set up a WhatsApp group chat with you. This is your direct line to us - it's where we'll send you casting opportunities, confirm bookings, and handle any day-to-day comms.
+              </p>
+              <p style="font-size: 15px; color: #555; line-height: 1.6;">
+                Please make sure you have WhatsApp downloaded on your phone and a number registered - <a href="https://www.whatsapp.com/download" style="color: #333; font-weight: 600;">download here</a>.
               </p>
               <p style="font-size: 15px; color: #555; line-height: 1.6;">
                 Your signed talent agreement is attached to this email for your records.
