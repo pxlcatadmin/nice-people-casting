@@ -170,6 +170,38 @@ export default function SubmissionForm() {
 
   const isRegistration = job?.type === "registration";
 
+  // Auto-save progress to localStorage
+  const draftKey = `np_draft_${slug}`;
+  const hasDraftRef = useRef(false);
+
+  // Restore saved draft on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(draftKey);
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        if (draft.form) setForm((prev) => ({ ...prev, ...draft.form }));
+        if (draft.reg) setReg((prev) => ({ ...prev, ...draft.reg }));
+        if (draft.step && draft.step > 1) setStep(draft.step);
+        hasDraftRef.current = true;
+      } catch {
+        localStorage.removeItem(draftKey);
+      }
+    }
+  }, [draftKey]);
+
+  // Save draft whenever form/reg/step changes (after initial load)
+  useEffect(() => {
+    if (submitted) {
+      localStorage.removeItem(draftKey);
+      return;
+    }
+    // Don't save on the welcome step with empty form
+    if (step <= 1 && !form.first_name && !hasDraftRef.current) return;
+    const draft = { form, reg, step, savedAt: new Date().toISOString() };
+    localStorage.setItem(draftKey, JSON.stringify(draft));
+  }, [form, reg, step, submitted, draftKey]);
+
   // Check for autofill data from Google sign-in
   useEffect(() => {
     const autofill = sessionStorage.getItem("np_autofill");
@@ -411,6 +443,15 @@ export default function SubmissionForm() {
   const handleSubmit = async () => {
     setSubmitting(true);
     setError("");
+    setSubmitProgress("");
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email)) {
+      setError("Please enter a valid email address.");
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const totalFiles = digiFiles.length + portfolioFiles.length;
@@ -471,17 +512,33 @@ export default function SubmissionForm() {
         };
       }
 
+      // Submit with timeout to prevent infinite hang
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+
       const res = await fetch("/api/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(submitBody),
+        signal: controller.signal,
       });
 
-      const data = await res.json();
+      clearTimeout(timeout);
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        setError("We received an unexpected response from the server. Please try again.");
+        setSubmitting(false);
+        setSubmitProgress("");
+        return;
+      }
 
       if (!res.ok) {
-        setError(data.error || "Something went wrong.");
+        setError(data.error || "Something went wrong. Please try again.");
         setSubmitting(false);
+        setSubmitProgress("");
         return;
       }
 
@@ -530,9 +587,14 @@ export default function SubmissionForm() {
       }
 
       setSubmitted(true);
-    } catch {
-      setError("Network error. Please check your connection and try again.");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError("The submission timed out. Please check your connection and try again.");
+      } else {
+        setError("Something went wrong. Please check your connection and try again.");
+      }
       setSubmitting(false);
+      setSubmitProgress("");
     }
   };
 
