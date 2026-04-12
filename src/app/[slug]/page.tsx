@@ -244,7 +244,7 @@ export default function SubmissionForm() {
   // Build dynamic steps
   const steps = useMemo(() => {
     if (isRegistration) {
-      return ["welcome", "about", "measurements_reg", "digis", "experience_reg", "emergency", "payment", "code_of_conduct", "agreement"];
+      return ["welcome", "about", "measurements_reg", "experience_reg", "emergency", "payment", "code_of_conduct", "agreement"];
     }
     const s: string[] = ["welcome", "about"];
     if (config.measurements.enabled) s.push("measurements");
@@ -1498,7 +1498,7 @@ export default function SubmissionForm() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 mb-1">2. Professional Presence</h3>
-                <p>You are representing yourself and Nice People Management at every job. Please present yourself in a professional and respectful manner at all times. This includes appropriate grooming, clean digitals, and maintaining a professional social media presence.</p>
+                <p>You are representing yourself and Nice People Management at every job. Please present yourself in a professional and respectful manner at all times. This includes appropriate grooming and clean digitals.</p>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 mb-1">3. Clear Communication</h3>
