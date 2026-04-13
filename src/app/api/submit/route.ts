@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     // Admin notification
     try {
       await resend.emails.send({
-        from: "Nice People Casting <onboarding@resend.dev>",
+        from: "Nice People <hello@nicepeople.au>",
         to: "info@nicepeople.au",
         subject: isRegistration ? `New talent registration - ${name}` : `New application - ${name}`,
         html: `
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
           .eq("id", submission?.id);
 
         await resend.emails.send({
-          from: "Nice People Casting <onboarding@resend.dev>",
+          from: "Nice People <hello@nicepeople.au>",
           to: body.email,
           subject: "Welcome to Nice People",
           attachments: [
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
     else if (!isRegistration && body.profile_id && body.email) {
       try {
         await resend.emails.send({
-          from: "Nice People Casting <onboarding@resend.dev>",
+          from: "Nice People <hello@nicepeople.au>",
           to: body.email,
           subject: "Thanks for applying!",
           html: `
