@@ -250,6 +250,23 @@ export default function AdminDashboard() {
     }
   };
 
+  const toggleJobStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === "open" ? "closed" : "open";
+    // Optimistic UI update
+    setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status: newStatus } : j)));
+
+    const res = await fetch("/api/admin/jobs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: newStatus }),
+    });
+
+    if (!res.ok) {
+      // Revert on failure
+      setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status: currentStatus } : j)));
+    }
+  };
+
   const sortedJobs = [...jobs].sort((a, b) => {
     switch (sortBy) {
       case "newest":
@@ -635,18 +652,9 @@ export default function AdminDashboard() {
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 pr-8">
+                      <div className="flex items-center gap-3 pr-24">
                         <span className="text-sm text-gray-500">
                           {count} submission{count !== 1 ? "s" : ""}
-                        </span>
-                        <span
-                          className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                            job.status === "open"
-                              ? "bg-green-50 text-green-600"
-                              : "bg-gray-100 text-gray-500"
-                          }`}
-                        >
-                          {job.status}
                         </span>
                       </div>
                     </div>
@@ -674,6 +682,22 @@ export default function AdminDashboard() {
                         Copy link
                       </>
                     )}
+                  </button>
+                  {/* Active/Inactive toggle */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleJobStatus(job.id, job.status);
+                    }}
+                    title={job.status === "open" ? "Click to mark inactive" : "Click to mark active"}
+                    className={`absolute top-4 right-14 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                      job.status === "open"
+                        ? "bg-green-50 text-green-600 hover:bg-green-100"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                  >
+                    {job.status === "open" ? "Active" : "Inactive"}
                   </button>
                   {/* Three-dot menu */}
                   <button
