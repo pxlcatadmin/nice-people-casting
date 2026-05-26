@@ -36,6 +36,7 @@ interface AssetConfig {
   digis: { enabled: boolean; required: boolean; min: number; max: number };
   portfolio: { enabled: boolean; required: boolean; max: number };
   self_tape: { enabled: boolean; required: boolean };
+  previous_work: { enabled: boolean; required: boolean };
   measurements: { enabled: boolean; fields: MeasurementFields };
   about: { fields: AboutFields };
   experience: { enabled: boolean };
@@ -59,6 +60,7 @@ const DEFAULT_ASSET_CONFIG: AssetConfig = {
   digis: { enabled: true, required: true, min: 4, max: 8 },
   portfolio: { enabled: true, required: false, max: 10 },
   self_tape: { enabled: false, required: false },
+  previous_work: { enabled: false, required: false },
   measurements: {
     enabled: true,
     fields: { height_cm: fc(), bust_cm: fc(), waist_cm: fc(), hips_cm: fc(), shoe_size: fc(), hair_color: fc(), eye_color: fc() },
@@ -136,6 +138,7 @@ export default function SubmissionForm() {
     experience_level: "none",
     experience_notes: "",
     self_tape_url: "",
+    previous_work: "",
   });
 
   const [reg, setReg] = useState({
@@ -249,6 +252,7 @@ export default function SubmissionForm() {
       digis: { ...DEFAULT_ASSET_CONFIG.digis, ...r.digis },
       portfolio: { ...DEFAULT_ASSET_CONFIG.portfolio, ...r.portfolio },
       self_tape: { ...DEFAULT_ASSET_CONFIG.self_tape, ...r.self_tape },
+      previous_work: { ...DEFAULT_ASSET_CONFIG.previous_work, ...r.previous_work },
       measurements: {
         enabled: (r.measurements as { enabled?: boolean })?.enabled ?? true,
         fields: {
@@ -283,6 +287,7 @@ export default function SubmissionForm() {
     if (config.digis.enabled) s.push("digis");
     if (config.portfolio.enabled) s.push("portfolio");
     if (config.self_tape.enabled) s.push("self_tape");
+    if (config.previous_work.enabled) s.push("previous_work");
     if (config.experience.enabled) s.push("experience");
     return s;
   }, [config, isRegistration]);
@@ -369,6 +374,10 @@ export default function SubmissionForm() {
       if (config.self_tape?.required) return form.self_tape_url.trim().length > 0;
       return true;
     }
+    if (currentStepName === "previous_work") {
+      if (config.previous_work?.required) return form.previous_work.trim().length > 0;
+      return true;
+    }
     if (currentStepName === "measurements_reg") {
       return !!form.height_cm && !!form.hair_color.trim() && !!form.eye_color.trim() && !!form.shoe_size.trim();
     }
@@ -394,6 +403,7 @@ export default function SubmissionForm() {
     if (step === TOTAL_STEPS) return submitting ? "Submitting..." : isRegistration ? "Submit registration" : "Submit application";
     if (currentStepName === "portfolio" && portfolioFiles.length === 0) return "Skip";
     if (currentStepName === "self_tape" && !config.self_tape?.required && !form.self_tape_url.trim()) return "Skip";
+    if (currentStepName === "previous_work" && !config.previous_work?.required && !form.previous_work.trim()) return "Skip";
     if (currentStepName === "code_of_conduct") return "I agree";
     if (currentStepName === "agreement") return "Sign and submit";
     return "Continue";
@@ -1180,6 +1190,36 @@ export default function SubmissionForm() {
               placeholder="https://..."
               required={config.self_tape?.required}
             />
+          </div>
+        )}
+
+        {/* Previous Work */}
+        {currentStepName === "previous_work" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Previous work</h2>
+              <p className="text-gray-400 text-sm">
+                Share links to any previous work that&apos;s similar — UGC,
+                brand work, anything that shows your style.
+              </p>
+              <p className="text-xs text-gray-400 mt-2">
+                One link per line. YouTube, TikTok, Instagram, Drive, Vimeo
+                — anything shareable works.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-700">
+                Links {config.previous_work?.required && <span className="text-red-500">*</span>}
+              </label>
+              <textarea
+                value={form.previous_work}
+                onChange={(e) => updateForm("previous_work", e.target.value)}
+                placeholder="https://..."
+                rows={6}
+                className="w-full px-4 py-3 rounded-lg border border-nice-border text-sm focus:outline-none focus:border-gray-400 resize-none"
+              />
+            </div>
           </div>
         )}
 

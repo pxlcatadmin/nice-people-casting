@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       portfolio: body.portfolio || [],
       photos: [...(body.digis || []), ...(body.portfolio || [])],
       self_tape_url: body.self_tape_url || "",
+      previous_work: body.previous_work || "",
       profile_id: body.profile_id || null,
       registration_data: body.registration_data || null,
     }).select("id").single();
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
           <p><strong>Experience:</strong> ${body.experience_level || "-"}</p>
           <p><strong>Digis:</strong> ${(body.digis || []).length} photos</p>
           <p><strong>Portfolio:</strong> ${(body.portfolio || []).length} photos</p>
+          ${body.previous_work ? `<p><strong>Previous work:</strong><br>${(body.previous_work as string).split("\n").filter((l: string) => l.trim()).map((l: string) => `<a href="${l.trim()}">${l.trim()}</a>`).join("<br>")}</p>` : ""}
           ${isRegistration && body.registration_data ? `
             <hr style="margin: 16px 0; border: none; border-top: 1px solid #e5e5e5;">
             <p><strong>Agreement signed:</strong> ${body.registration_data.agreement_signed ? "Yes" : "No"}</p>

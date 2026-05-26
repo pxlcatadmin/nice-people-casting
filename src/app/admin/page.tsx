@@ -12,6 +12,7 @@ interface AssetConfig {
   digis: { enabled: boolean; required: boolean; min: number; max: number };
   portfolio: { enabled: boolean; required: boolean; max: number };
   self_tape: { enabled: boolean; required: boolean };
+  previous_work: { enabled: boolean; required: boolean };
   measurements: {
     enabled: boolean;
     fields: {
@@ -41,6 +42,7 @@ const DEFAULT_ASSET_CONFIG: AssetConfig = {
   digis: { enabled: true, required: true, min: 4, max: 8 },
   portfolio: { enabled: true, required: false, max: 10 },
   self_tape: { enabled: false, required: false },
+  previous_work: { enabled: false, required: false },
   measurements: {
     enabled: true,
     fields: { height_cm: f(), bust_cm: f(), waist_cm: f(), hips_cm: f(), shoe_size: f(), hair_color: f(), eye_color: f() },
@@ -69,6 +71,7 @@ function mergeConfig(raw: any): AssetConfig {
     digis: { ...DEFAULT_ASSET_CONFIG.digis, ...r.digis },
     portfolio: { ...DEFAULT_ASSET_CONFIG.portfolio, ...r.portfolio },
     self_tape: { ...DEFAULT_ASSET_CONFIG.self_tape, ...r.self_tape },
+    previous_work: { ...DEFAULT_ASSET_CONFIG.previous_work, ...r.previous_work },
     measurements: {
       enabled: (r.measurements as { enabled?: boolean })?.enabled ?? true,
       fields: {
@@ -1027,6 +1030,35 @@ function AssetConfigEditor({
             {config.self_tape.enabled && (
               <p className="text-xs text-gray-400 mt-2 pl-11">
                 Applicants will paste a link (YouTube, Vimeo, Google Drive, etc.)
+              </p>
+            )}
+          </div>
+
+          {/* Previous Work */}
+          <div className="p-3 rounded-lg border border-nice-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Toggle
+                  on={config.previous_work.enabled}
+                  onToggle={() => onChange({ ...config, previous_work: { ...config.previous_work, enabled: !config.previous_work.enabled } })}
+                />
+                <span className="text-sm font-medium">Previous work</span>
+              </div>
+              {config.previous_work.enabled && (
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={config.previous_work.required}
+                    onChange={(e) => onChange({ ...config, previous_work: { ...config.previous_work, required: e.target.checked } })}
+                    className="rounded"
+                  />
+                  <span className="text-xs text-gray-500">Required</span>
+                </label>
+              )}
+            </div>
+            {config.previous_work.enabled && (
+              <p className="text-xs text-gray-400 mt-2 pl-11">
+                Applicants paste links to examples of past work (one per line).
               </p>
             )}
           </div>

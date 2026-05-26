@@ -26,6 +26,7 @@ interface Submission {
   portfolio: string[];
   photos: string[];
   self_tape_url: string;
+  previous_work: string;
   status: string;
   admin_notes: string;
   created_at: string;
@@ -278,7 +279,7 @@ export default function JobReview() {
       "First Name", "Last Name", "Email", "Phone", "Instagram",
       "DOB", "Gender", "Height", "Bust", "Waist", "Hips",
       "Shoe Size", "Hair", "Eyes", "Experience", "Notes",
-      "Status", "Admin Notes", "Digitals", "Portfolio", "Self Tape",
+      "Status", "Admin Notes", "Digitals", "Portfolio", "Self Tape", "Previous Work",
     ];
 
     const rows = submissions.map((s) => [
@@ -290,6 +291,7 @@ export default function JobReview() {
       (s.digis || []).join(" | "),
       (s.portfolio || []).join(" | "),
       s.self_tape_url || "",
+      s.previous_work || "",
     ]);
 
     const csv = [headers, ...rows]
@@ -633,6 +635,24 @@ export default function JobReview() {
                         >
                           View self tape
                         </a>
+                      </DetailSection>
+                    )}
+
+                    {current.previous_work && current.previous_work.trim() && (
+                      <DetailSection title="Previous Work">
+                        <div className="space-y-1">
+                          {current.previous_work.split("\n").filter((l) => l.trim()).map((link, i) => (
+                            <a
+                              key={i}
+                              href={link.trim()}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block text-blue-500 hover:text-blue-700 underline break-all"
+                            >
+                              {link.trim()}
+                            </a>
+                          ))}
+                        </div>
                       </DetailSection>
                     )}
 
