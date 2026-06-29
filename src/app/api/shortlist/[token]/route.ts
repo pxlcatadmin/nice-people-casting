@@ -6,6 +6,18 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+function parseRoleFromNotes(notes: string | null | undefined): string | null {
+  if (!notes) return null;
+  const match = notes.match(/Role:\s*([^\n]+)/i);
+  if (!match) return null;
+  const raw = match[1].trim();
+  const lower = raw.toLowerCase();
+  if (lower.includes("brother")) return "Brother";
+  if (lower.includes("mum") || lower.includes("mother")) return "Mum";
+  if (lower.includes("hero") || lower.includes("supporting")) return "Hero";
+  return raw;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
@@ -60,7 +72,7 @@ export async function GET(
     (selections || []).map((s) => [s.submission_id, s])
   );
 
-  // Strip private fields, merge selection state
+  // Strip private fields, merge selection state, expose parsed role
   const publicSubmissions = (submissions || []).map((s) => ({
     id: s.id,
     first_name: s.first_name,
@@ -74,6 +86,7 @@ export async function GET(
     experience_notes: s.experience_notes,
     photos: [...(s.digis || []), ...(s.portfolio || [])],
     self_tape_url: s.self_tape_url || "",
+    role: parseRoleFromNotes(s.admin_notes),
     selected: selectionMap.get(s.id)?.selected || false,
     selection_note: selectionMap.get(s.id)?.note || "",
   }));

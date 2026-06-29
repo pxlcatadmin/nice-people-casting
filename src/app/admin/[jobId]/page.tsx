@@ -68,6 +68,19 @@ function parseRoleFromNotes(notes: string | undefined): string | null {
   return raw;
 }
 
+function roleTheme(role: string | null): { bg: string; text: string; dot: string } {
+  switch (role) {
+    case "Hero":
+      return { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" };
+    case "Mum":
+      return { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" };
+    case "Brother":
+      return { bg: "bg-sky-50", text: "text-sky-700", dot: "bg-sky-500" };
+    default:
+      return { bg: "bg-gray-100", text: "text-gray-700", dot: "bg-gray-400" };
+  }
+}
+
 export default function JobReview() {
   const { jobId } = useParams();
   const router = useRouter();
@@ -609,18 +622,27 @@ export default function JobReview() {
 
               {current && (
                 <>
-                  <h2 className="text-xl font-semibold">
-                    {current.first_name} {current.last_name}
-                  </h2>
                   {(() => {
                     const role = parseRoleFromNotes(current.admin_notes);
                     if (!role) return null;
+                    const theme = roleTheme(role);
                     return (
-                      <span className="inline-block mt-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-700">
-                        {role}
-                      </span>
+                      <div className={`mb-4 px-4 py-3 rounded-xl ${theme.bg}`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${theme.dot}`} />
+                          <span className={`text-[10px] uppercase tracking-[0.2em] font-semibold ${theme.text} opacity-70`}>
+                            Casting for
+                          </span>
+                        </div>
+                        <p className={`text-2xl font-bold mt-0.5 ${theme.text}`}>
+                          {role}
+                        </p>
+                      </div>
                     );
                   })()}
+                  <h2 className="text-xl font-semibold">
+                    {current.first_name} {current.last_name}
+                  </h2>
                   {current.instagram && (
                     <a
                       href={`https://instagram.com/${current.instagram.replace("@", "")}`}

@@ -18,8 +18,22 @@ interface PublicSubmission {
   experience_notes: string;
   photos: string[];
   self_tape_url: string;
+  role: string | null;
   selected: boolean;
   selection_note: string;
+}
+
+function roleTheme(role: string | null): { bg: string; text: string; dot: string } {
+  switch (role) {
+    case "Hero":
+      return { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" };
+    case "Mum":
+      return { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" };
+    case "Brother":
+      return { bg: "bg-sky-50", text: "text-sky-700", dot: "bg-sky-500" };
+    default:
+      return { bg: "bg-gray-100", text: "text-gray-700", dot: "bg-gray-400" };
+  }
 }
 
 interface ShareData {
@@ -266,6 +280,22 @@ export default function ClientLookbook() {
             {/* Details */}
             <div className="lg:w-80 space-y-6 pb-8">
               <div>
+                {active.role && (() => {
+                  const theme = roleTheme(active.role);
+                  return (
+                    <div className={`mb-4 px-4 py-3 rounded-xl ${theme.bg}`}>
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${theme.dot}`} />
+                        <span className={`text-[10px] uppercase tracking-[0.2em] font-semibold ${theme.text} opacity-70`}>
+                          Casting for
+                        </span>
+                      </div>
+                      <p className={`text-2xl font-bold mt-0.5 ${theme.text}`}>
+                        {active.role}
+                      </p>
+                    </div>
+                  );
+                })()}
                 <h1 className="text-2xl font-semibold">{active.first_name} {active.last_name}</h1>
                 {active.instagram && (
                   <a
@@ -351,57 +381,95 @@ export default function ClientLookbook() {
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Grid — grouped by role */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {data.submissions.map((s, idx) => (
-            <div
-              key={s.id}
-              className="group cursor-pointer"
-              style={{ animationDelay: `${idx * 60}ms` }}
-              onClick={() => { setActiveIndex(idx); setCurrentPhoto(0); }}
-            >
-              <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-nice-gray animate-stagger-in">
-                {s.photos[0] ? (
-                  <img
-                    src={s.photos[0]}
-                    alt={`${s.first_name} ${s.last_name}`}
-                    loading="lazy"
-                    className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl font-light">
-                    {s.first_name[0]}{s.last_name[0]}
-                  </div>
-                )}
+        {(() => {
+          // Group by role and order Hero → Mum → Brother → Other
+          const groups: Record<string, { submissions: PublicSubmission[]; originalIndices: number[] }> = {};
+          data.submissions.forEach((s, idx) => {
+            const key = s.role || "Other";
+            if (!groups[key]) groups[key] = { submissions: [], originalIndices: [] };
+            groups[key].submissions.push(s);
+            groups[key].originalIndices.push(idx);
+          });
+          const order = ["Hero", "Mum", "Brother"];
+          const sortedKeys = Object.keys(groups).sort((a, b) => {
+            const ai = order.indexOf(a);
+            const bi = order.indexOf(b);
+            if (ai !== -1 && bi !== -1) return ai - bi;
+            if (ai !== -1) return -1;
+            if (bi !== -1) return 1;
+            return a.localeCompare(b);
+          });
 
-                {/* Selection heart */}
-                {data.allow_selections && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleSelection(s.id); }}
-                    className="absolute bottom-3 right-3 w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center transition-all hover:bg-black/50"
-                  >
-                    <svg
-                      className={`w-5 h-5 transition-all ${s.selected ? "text-red-400 scale-110" : "text-white"}`}
-                      fill={s.selected ? "currentColor" : "none"}
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              <div className="mt-3 px-1">
-                <p className="text-sm font-medium">{s.first_name} {s.last_name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {[s.height_cm && `${s.height_cm}cm`, s.instagram && (s.instagram.startsWith("@") ? s.instagram : `@${s.instagram}`)].filter(Boolean).join(" - ")}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+          return sortedKeys.map((roleKey) => {
+            const theme = roleTheme(roleKey === "Other" ? null : roleKey);
+            const group = groups[roleKey];
+            return (
+              <section key={roleKey} className="mb-12 last:mb-0">
+                <div className="flex items-center gap-3 mb-5">
+                  <span className={`w-2.5 h-2.5 rounded-full ${theme.dot}`} />
+                  <h2 className={`text-2xl font-bold ${theme.text}`}>{roleKey}</h2>
+                  <span className="text-sm text-gray-400">
+                    {group.submissions.length} {group.submissions.length === 1 ? "option" : "options"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {group.submissions.map((s, i) => {
+                    const idx = group.originalIndices[i];
+                    return (
+                      <div
+                        key={s.id}
+                        className="group cursor-pointer"
+                        style={{ animationDelay: `${i * 60}ms` }}
+                        onClick={() => { setActiveIndex(idx); setCurrentPhoto(0); }}
+                      >
+                        <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-nice-gray animate-stagger-in">
+                          {s.photos[0] ? (
+                            <img
+                              src={s.photos[0]}
+                              alt={`${s.first_name} ${s.last_name}`}
+                              loading="lazy"
+                              className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl font-light">
+                              {s.first_name[0]}{s.last_name[0]}
+                            </div>
+                          )}
+
+                          {/* Selection heart */}
+                          {data.allow_selections && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleSelection(s.id); }}
+                              className="absolute bottom-3 right-3 w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center transition-all hover:bg-black/50"
+                            >
+                              <svg
+                                className={`w-5 h-5 transition-all ${s.selected ? "text-red-400 scale-110" : "text-white"}`}
+                                fill={s.selected ? "currentColor" : "none"}
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                        <div className="mt-3 px-1">
+                          <p className="text-sm font-medium">{s.first_name} {s.last_name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {[s.height_cm && `${s.height_cm}cm`, s.instagram && (s.instagram.startsWith("@") ? s.instagram : `@${s.instagram}`)].filter(Boolean).join(" - ")}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          });
+        })()}
       </div>
 
       {/* Floating selection counter */}
