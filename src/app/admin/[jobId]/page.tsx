@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
+import VideoEmbed from "@/components/VideoEmbed";
 
 interface Submission {
   id: string;
@@ -52,6 +53,21 @@ interface Job {
 type ViewMode = "slideshow" | "grid" | "table";
 type PhotoTab = "digis" | "portfolio" | "all";
 
+// Pulls the role out of admin_notes (the ingest script writes "Role: <name>")
+// and collapses Supporting and Hero/Supporting into "Hero" so the talent pool
+// has three clear buckets: Hero, Mum, Brother.
+function parseRoleFromNotes(notes: string | undefined): string | null {
+  if (!notes) return null;
+  const match = notes.match(/Role:\s*([^\n]+)/i);
+  if (!match) return null;
+  const raw = match[1].trim();
+  const lower = raw.toLowerCase();
+  if (lower.includes("brother")) return "Brother";
+  if (lower.includes("mum") || lower.includes("mother")) return "Mum";
+  if (lower.includes("hero") || lower.includes("supporting")) return "Hero";
+  return raw;
+}
+
 export default function JobReview() {
   const { jobId } = useParams();
   const router = useRouter();
@@ -63,6 +79,16 @@ export default function JobReview() {
   const [photoTab, setPhotoTab] = useState<PhotoTab>("digis");
   const [viewMode, setViewMode] = useState<ViewMode>("slideshow");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterRole, setFilterRole] = useState("all");
+
+  const availableRoles = useMemo(() => {
+    const roles = new Set<string>();
+    submissions.forEach((s) => {
+      const r = parseRoleFromNotes(s.admin_notes);
+      if (r) roles.add(r);
+    });
+    return Array.from(roles).sort();
+  }, [submissions]);
   const [loading, setLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareLinks, setShareLinks] = useState<{ id: string; token: string; client_name: string; is_active: boolean; allow_selections: boolean; selection_count: number; created_at: string }[]>([]);
@@ -98,20 +124,22 @@ export default function JobReview() {
     fetchSubmissions();
   }, [fetchJob, fetchSubmissions]);
 
-  const prevFilterRef = useRef(filterStatus);
+  const prevFilterRef = useRef(`${filterStatus}|${filterRole}`);
   useEffect(() => {
-    if (filterStatus === "all") {
-      setFiltered(submissions);
-    } else {
-      setFiltered(submissions.filter((s) => s.status === filterStatus));
-    }
+    const next = submissions.filter((s) => {
+      if (filterStatus !== "all" && s.status !== filterStatus) return false;
+      if (filterRole !== "all" && parseRoleFromNotes(s.admin_notes) !== filterRole) return false;
+      return true;
+    });
+    setFiltered(next);
     // Only reset position when the filter changes, not when submissions update
-    if (prevFilterRef.current !== filterStatus) {
+    const key = `${filterStatus}|${filterRole}`;
+    if (prevFilterRef.current !== key) {
       setCurrentIndex(0);
       setCurrentPhoto(0);
-      prevFilterRef.current = filterStatus;
+      prevFilterRef.current = key;
     }
-  }, [submissions, filterStatus]);
+  }, [submissions, filterStatus, filterRole]);
 
   const updateStatus = async (id: string, status: string) => {
     await fetch("/api/admin/submissions", {
@@ -364,6 +392,20 @@ export default function JobReview() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              {availableRoles.length > 0 && (
+                <select
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  className="px-2 sm:px-3 py-1.5 rounded-lg border border-nice-border text-xs sm:text-sm focus:outline-none"
+                >
+                  <option value="all">All roles</option>
+                  {availableRoles.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              )}
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
@@ -424,94 +466,108 @@ export default function JobReview() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           {/* Desktop: side by side. Mobile: stacked */}
           <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 lg:h-[calc(100vh-120px)]">
-            {/* Photo Section */}
-            <div className="flex-1 flex flex-col min-h-0">
-              {/* Photo tab switcher */}
-              <div className="flex gap-1 mb-3">
-                {(["digis", "portfolio", "all"] as PhotoTab[]).map((tab) => {
-                  const count =
-                    tab === "digis"
-                      ? (current?.digis || []).length
-                      : tab === "portfolio"
-                      ? (current?.portfolio || []).length
-                      : [...(current?.digis || []), ...(current?.portfolio || [])].length;
-                  return (
-                    <button
-                      key={tab}
-                      onClick={() => {
-                        setPhotoTab(tab);
-                        setCurrentPhoto(0);
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
-                        photoTab === tab
-                          ? "bg-nice-black text-white"
-                          : "text-gray-500 hover:bg-gray-50 border border-nice-border"
-                      }`}
-                    >
-                      {tab === "all" ? "All" : tab} ({count})
-                    </button>
-                  );
-                })}
-              </div>
-
-              {currentPhotos.length > 0 ? (
-                <>
-                  <div
-                    className="relative rounded-xl overflow-hidden bg-nice-gray aspect-[3/4] lg:aspect-auto lg:flex-1 lg:min-h-0"
-                    onTouchStart={handleTouchStart}
-                    onTouchEnd={handleTouchEnd}
-                  >
-                    <img
-                      key={`${currentIndex}-${currentPhoto}`}
-                      src={currentPhotos[currentPhoto]}
-                      alt={`${current.first_name} ${current.last_name}`}
-                      className="w-full h-full object-contain animate-fade-image"
-                    />
-                    {currentPhotos.length > 1 && (
-                      <>
-                        <button
-                          onClick={() => setCurrentPhoto((p) => Math.max(0, p - 1))}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60"
-                          disabled={currentPhoto === 0}
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setCurrentPhoto((p) => Math.min(currentPhotos.length - 1, p + 1))}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60"
-                          disabled={currentPhoto === currentPhotos.length - 1}
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                      </>
-                    )}
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full">
-                      {currentPhoto + 1} / {currentPhotos.length}
-                    </div>
-                  </div>
+            {/* Media Section — video primary, photos as thumbnails below */}
+            <div className="flex-1 flex flex-col min-h-0 gap-3">
+              {/* Video — main focal point */}
+              {current.self_tape_url ? (
+                <div className="flex-1 min-h-0 flex items-center justify-center">
+                  <VideoEmbed
+                    url={current.self_tape_url}
+                    maxHeightClass="max-h-full"
+                    className="h-full"
+                  />
+                </div>
+              ) : currentPhotos.length > 0 ? (
+                // No video — fall back to large photo display
+                <div
+                  className="relative rounded-xl overflow-hidden bg-nice-gray flex-1 min-h-0"
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  <img
+                    key={`${currentIndex}-${currentPhoto}`}
+                    src={currentPhotos[currentPhoto]}
+                    alt={`${current.first_name} ${current.last_name}`}
+                    className="w-full h-full object-contain animate-fade-image"
+                  />
                   {currentPhotos.length > 1 && (
-                    <div className="flex gap-2 mt-3 overflow-x-auto hide-scrollbar">
-                      {currentPhotos.map((photo, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setCurrentPhoto(i)}
-                          className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors flex-shrink-0 ${
-                            i === currentPhoto ? "border-nice-black" : "border-transparent"
-                          }`}
-                        >
-                          <img src={photo} alt="" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
+                    <>
+                      <button
+                        onClick={() => setCurrentPhoto((p) => Math.max(0, p - 1))}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60"
+                        disabled={currentPhoto === 0}
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setCurrentPhoto((p) => Math.min(currentPhotos.length - 1, p + 1))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 text-white rounded-full flex items-center justify-center hover:bg-black/60"
+                        disabled={currentPhoto === currentPhotos.length - 1}
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="flex-1 rounded-xl bg-nice-gray flex items-center justify-center text-gray-400">
+                  No media uploaded
+                </div>
+              )}
+
+              {/* Photo thumbnail strip */}
+              {currentPhotos.length > 0 && (
+                <div className="flex-shrink-0">
+                  {/* Compact photo tab switcher — only show if there are multiple types */}
+                  {((current?.digis?.length || 0) > 0 && (current?.portfolio?.length || 0) > 0) && (
+                    <div className="flex gap-1 mb-2">
+                      {(["digis", "portfolio", "all"] as PhotoTab[]).map((tab) => {
+                        const count =
+                          tab === "digis"
+                            ? (current?.digis || []).length
+                            : tab === "portfolio"
+                            ? (current?.portfolio || []).length
+                            : [...(current?.digis || []), ...(current?.portfolio || [])].length;
+                        return (
+                          <button
+                            key={tab}
+                            onClick={() => {
+                              setPhotoTab(tab);
+                              setCurrentPhoto(0);
+                            }}
+                            className={`px-2 py-1 rounded-md text-[11px] font-medium capitalize transition-colors ${
+                              photoTab === tab
+                                ? "bg-nice-black text-white"
+                                : "text-gray-500 hover:bg-gray-50 border border-nice-border"
+                            }`}
+                          >
+                            {tab === "all" ? "All" : tab} ({count})
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
-                </>
-              ) : (
-                <div className="aspect-[3/4] sm:aspect-auto sm:flex-1 rounded-xl bg-nice-gray flex items-center justify-center text-gray-400">
-                  No {photoTab === "all" ? "photos" : photoTab} uploaded
+                  <div className="flex gap-2 overflow-x-auto hide-scrollbar">
+                    {currentPhotos.map((photo, i) => (
+                      <a
+                        key={i}
+                        href={photo}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="h-24 rounded-lg overflow-hidden flex-shrink-0 bg-nice-gray hover:opacity-80 transition-opacity"
+                      >
+                        <img
+                          src={photo}
+                          alt=""
+                          className="h-full w-auto object-contain"
+                        />
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -556,6 +612,15 @@ export default function JobReview() {
                   <h2 className="text-xl font-semibold">
                     {current.first_name} {current.last_name}
                   </h2>
+                  {(() => {
+                    const role = parseRoleFromNotes(current.admin_notes);
+                    if (!role) return null;
+                    return (
+                      <span className="inline-block mt-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-700">
+                        {role}
+                      </span>
+                    );
+                  })()}
                   {current.instagram && (
                     <a
                       href={`https://instagram.com/${current.instagram.replace("@", "")}`}
@@ -631,9 +696,9 @@ export default function JobReview() {
                           href={current.self_tape_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-500 hover:text-blue-700 underline break-all"
+                          className="text-xs text-blue-500 hover:underline break-all"
                         >
-                          View self tape
+                          Open in new tab
                         </a>
                       </DetailSection>
                     )}

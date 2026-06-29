@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
+import VideoEmbed from "@/components/VideoEmbed";
 
 interface PublicSubmission {
   id: string;
@@ -327,15 +328,8 @@ export default function ClientLookbook() {
 
                 {active.self_tape_url && (
                   <div>
-                    <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Self Tape</p>
-                    <a
-                      href={active.self_tape_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-nice-blue hover:underline text-sm"
-                    >
-                      Watch video
-                    </a>
+                    <p className="text-gray-400 text-xs uppercase tracking-wide mb-2">Self Tape</p>
+                    <VideoEmbed url={active.self_tape_url} />
                   </div>
                 )}
               </div>
