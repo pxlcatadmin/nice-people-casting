@@ -322,14 +322,18 @@ export default function JobReview() {
 
   const exportCSV = () => {
     const headers = [
-      "First Name", "Last Name", "Email", "Phone", "Instagram",
+      "First Name", "Last Name", "Role", "Email", "Phone", "Instagram",
       "DOB", "Gender", "Height", "Bust", "Waist", "Hips",
       "Shoe Size", "Hair", "Eyes", "Experience", "Notes",
       "Status", "Admin Notes", "Digitals", "Portfolio", "Self Tape", "Previous Work",
     ];
 
-    const rows = submissions.map((s) => [
-      s.first_name, s.last_name, s.email, s.phone, s.instagram,
+    // Export what's currently visible (respects role + status filters) so
+    // "filter → Shortlisted → export" produces a shortlist CSV, and
+    // "filter → Hero → export" produces a Hero-only CSV, etc.
+    const rows = filtered.map((s) => [
+      s.first_name, s.last_name, parseRoleFromNotes(s.admin_notes) || "",
+      s.email, s.phone, s.instagram,
       s.date_of_birth, s.gender, s.height_cm || "", s.bust_cm || "",
       s.waist_cm || "", s.hips_cm || "", s.shoe_size, s.hair_color,
       s.eye_color, s.experience_level, s.experience_notes, s.status,
@@ -346,11 +350,17 @@ export default function JobReview() {
       )
       .join("\n");
 
+    // Name the file based on active filters so multiple exports are distinguishable.
+    const suffixParts = [];
+    if (filterRole !== "all") suffixParts.push(filterRole.toLowerCase());
+    if (filterStatus !== "all") suffixParts.push(filterStatus);
+    const suffix = suffixParts.length ? `-${suffixParts.join("-")}` : "";
+
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${job?.slug || "submissions"}-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `${job?.slug || "submissions"}${suffix}-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
   };
 
