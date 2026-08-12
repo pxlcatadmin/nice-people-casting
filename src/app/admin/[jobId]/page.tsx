@@ -239,11 +239,16 @@ export default function JobReview() {
     setTimeout(() => setCopiedLinkId(null), 2000);
   };
 
-  // Get photos for the current tab
+  // Get photos for the current tab.
+  // If the selected tab is empty for this submission but the other type has
+  // photos, fall back so the user never lands on an empty photo view when
+  // the submission does actually have images.
   const getPhotosForTab = (s: Submission): string[] => {
-    if (photoTab === "digis") return s.digis || [];
-    if (photoTab === "portfolio") return s.portfolio || [];
-    return [...(s.digis || []), ...(s.portfolio || [])];
+    const digis = s.digis || [];
+    const portfolio = s.portfolio || [];
+    if (photoTab === "digis") return digis.length ? digis : portfolio;
+    if (photoTab === "portfolio") return portfolio.length ? portfolio : digis;
+    return [...digis, ...portfolio];
   };
 
   // Preload next submission's photos
