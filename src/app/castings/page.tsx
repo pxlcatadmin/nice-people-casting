@@ -59,12 +59,12 @@ export default async function CastingsPage() {
             />
           </Link>
           <a
-            href="https://instagram.com/nicepeople.au"
+            href="https://instagram.com/nicepeopleau"
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-gray-500 hover:text-black transition-colors"
           >
-            @nicepeople.au
+            @nicepeopleau
           </a>
         </div>
       </header>
@@ -84,12 +84,12 @@ export default async function CastingsPage() {
           <div className="border border-nice-border rounded-lg py-8 text-center">
             <p className="text-xs text-gray-400 mb-3">No active castings.</p>
             <a
-              href="https://instagram.com/nicepeople.au"
+              href="https://instagram.com/nicepeopleau"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-black hover:underline"
             >
-              Follow @nicepeople.au →
+              Follow @nicepeopleau →
             </a>
           </div>
         ) : (
@@ -153,12 +153,12 @@ export default async function CastingsPage() {
         <div className="max-w-2xl mx-auto px-5 py-4 flex items-center justify-between text-xs text-gray-400">
           <p>Nice People · Talent &amp; casting</p>
           <a
-            href="https://instagram.com/nicepeople.au"
+            href="https://instagram.com/nicepeopleau"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-black transition-colors"
           >
-            @nicepeople.au
+            @nicepeopleau
           </a>
         </div>
       </footer>
