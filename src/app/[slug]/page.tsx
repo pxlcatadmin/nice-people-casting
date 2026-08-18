@@ -1168,8 +1168,8 @@ export default function SubmissionForm() {
             <div>
               <h2 className="text-xl font-semibold mb-1">Portfolio photos</h2>
               <p className="text-gray-400 text-sm">
-                These help us build your profile on the Nice People site &mdash;
-                it&apos;s the first thing clients see when they browse our
+                These help us build your profile on the Nice People site.
+                It&apos;s the first thing clients see when they browse our
                 talent, so strong images help you get booked.
               </p>
               <div className="mt-3 p-3 bg-nice-gray rounded-lg">
@@ -1179,9 +1179,12 @@ export default function SubmissionForm() {
                   <li>&bull; Campaign, editorial or test shoot images</li>
                   <li>&bull; Anything shot by a photographer (not phone selfies)</li>
                 </ul>
+                <p className="text-xs text-gray-500 mt-3">
+                  We&apos;d recommend a minimum of 8 uploads.
+                </p>
                 <p className="text-xs text-gray-400 mt-3">
                   <strong className="text-gray-500">No portfolio yet?</strong>{" "}
-                  That&apos;s totally OK &mdash; skip this step. It lets us
+                  That&apos;s totally OK, just skip this step. It lets us
                   know to organise some test shoots for you, and it
                   streamlines the process on our end.
                 </p>
@@ -1189,7 +1192,7 @@ export default function SubmissionForm() {
             </div>
 
             <p className="text-xs text-gray-400">
-              Optional &bull; Up to 10 photos
+              Optional &bull; We&apos;d recommend at least 8 &bull; Up to 10 photos
             </p>
 
             <div className="grid grid-cols-2 gap-3">
