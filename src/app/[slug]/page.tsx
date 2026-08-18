@@ -71,6 +71,10 @@ const DEFAULT_ASSET_CONFIG: AssetConfig = {
   experience: { enabled: true },
 };
 
+// Talent registration collects a fuller portfolio than a one-off casting
+// callout, so it has its own upload cap independent of a job's asset_config.
+const REG_PORTFOLIO_MAX = 15;
+
 function normalizeField(val: unknown, def: FieldConfig): FieldConfig {
   if (typeof val === "boolean") return { enabled: val, required: false };
   if (val && typeof val === "object") return { enabled: (val as FieldConfig).enabled ?? def.enabled, required: (val as FieldConfig).required ?? def.required };
@@ -323,7 +327,7 @@ export default function SubmissionForm() {
 
   const handlePortfolio = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const max = config.portfolio?.max || 10;
+    const max = isRegistration ? REG_PORTFOLIO_MAX : (config.portfolio?.max || 10);
     const newFiles = [...portfolioFiles, ...files].slice(0, max);
     setPortfolioFiles(newFiles);
     setPortfolioPreviews(newFiles.map((f) => URL.createObjectURL(f)));
@@ -1192,7 +1196,7 @@ export default function SubmissionForm() {
             </div>
 
             <p className="text-xs text-gray-400">
-              Optional &bull; We&apos;d recommend at least 8 &bull; Up to 10 photos
+              Optional &bull; We&apos;d recommend at least 8 &bull; Up to {REG_PORTFOLIO_MAX} photos
             </p>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1213,7 +1217,7 @@ export default function SubmissionForm() {
                 </div>
               ))}
 
-              {portfolioFiles.length < 10 && (
+              {portfolioFiles.length < REG_PORTFOLIO_MAX && (
                 <button
                   type="button"
                   onClick={() => portfolioInputRef.current?.click()}
