@@ -11,6 +11,161 @@ const supabase = createClient(
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// ---------- Admin email templates ----------
+
+function esc(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "—";
+  return String(v)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function row(label: string, value: unknown): string {
+  return `<tr>
+    <td style="padding: 6px 12px 6px 0; vertical-align: top; color: #6b7280; font-size: 13px; white-space: nowrap;">${label}</td>
+    <td style="padding: 6px 0; vertical-align: top; color: #111827; font-size: 13px;">${esc(value)}</td>
+  </tr>`;
+}
+
+function photoLinks(urls: string[] | undefined, label: string): string {
+  if (!urls || urls.length === 0) return "";
+  const list = urls
+    .map(
+      (u, i) => `<li style="margin: 2px 0;"><a href="${esc(u)}" style="color: #2563eb; text-decoration: none;">${label} ${i + 1}</a></li>`
+    )
+    .join("");
+  return `<ul style="padding-left: 18px; margin: 6px 0;">${list}</ul>`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildCastingAdminEmail({ body, name, jobSlug }: { body: any; name: string; jobSlug: string }): string {
+  return `
+    <h2 style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0 0 12px;">New casting application</h2>
+    <p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0 0 12px; color: #6b7280;">Job: <strong>${esc(jobSlug)}</strong></p>
+    <table style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; border-collapse: collapse;">
+      ${row("Name", name)}
+      ${row("Email", body.email)}
+      ${row("Phone", body.phone)}
+      ${row("Instagram", body.instagram)}
+      ${row("Gender", body.gender)}
+      ${row("Experience", body.experience_level)}
+      ${row("Digis", (body.digis || []).length)}
+      ${row("Portfolio", (body.portfolio || []).length)}
+    </table>
+    ${body.previous_work
+      ? `<p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 12px 0 4px; color: #6b7280; font-size: 13px;">Previous work:</p>
+         <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px;">${(body.previous_work as string).split("\n").filter((l: string) => l.trim()).map((l: string) => `<a href="${esc(l.trim())}" style="color: #2563eb; text-decoration: none;">${esc(l.trim())}</a>`).join("<br>")}</div>`
+      : ""}
+    <p style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 20px 0 0;">
+      <a href="https://casting.nicepeople.au/admin" style="color: #2563eb;">Open in admin →</a>
+    </p>
+  `;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildRegistrationAdminEmail({ body, name, submissionId }: { body: any; name: string; submissionId: string | undefined }): string {
+  const reg = body.registration_data || {};
+  const digis: string[] = body.digis || [];
+  const portfolio: string[] = body.portfolio || [];
+  const adminLink = `https://casting.nicepeople.au/admin`;
+
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 640px; padding: 24px; color: #111827;">
+      <h1 style="font-size: 20px; margin: 0 0 4px;">New talent registration</h1>
+      <p style="margin: 0 0 20px; color: #6b7280; font-size: 14px;">
+        ${esc(name)} completed the registration on casting.nicepeople.au.
+      </p>
+
+      <h3 style="font-size: 14px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">Contact</h3>
+      <table style="border-collapse: collapse; width: 100%;">
+        ${row("Name", name)}
+        ${row("Email", body.email)}
+        ${row("Phone", body.phone)}
+        ${row("Instagram", body.instagram)}
+        ${row("Date of birth", body.date_of_birth)}
+        ${row("Gender", body.gender)}
+        ${reg.address ? row("Address", reg.address) : ""}
+        ${reg.social_tiktok ? row("TikTok", reg.social_tiktok) : ""}
+      </table>
+
+      <h3 style="font-size: 14px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">Measurements</h3>
+      <table style="border-collapse: collapse; width: 100%;">
+        ${row("Height", body.height_cm ? `${body.height_cm}cm` : null)}
+        ${reg.weight ? row("Weight", `${reg.weight}kg`) : ""}
+        ${row("Bust", body.bust_cm ? `${body.bust_cm}cm` : null)}
+        ${row("Waist", body.waist_cm ? `${body.waist_cm}cm` : null)}
+        ${row("Hips", body.hips_cm ? `${body.hips_cm}cm` : null)}
+        ${row("Shoe size", body.shoe_size)}
+        ${reg.pants_size ? row("Pants", reg.pants_size) : ""}
+        ${reg.top_size ? row("Top", reg.top_size) : ""}
+        ${reg.inseam ? row("Inseam", `${reg.inseam}cm`) : ""}
+        ${row("Hair", body.hair_color)}
+        ${reg.hair_length ? row("Hair length", reg.hair_length) : ""}
+        ${row("Eyes", body.eye_color)}
+      </table>
+
+      <h3 style="font-size: 14px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">Experience</h3>
+      <table style="border-collapse: collapse; width: 100%;">
+        ${row("Level", body.experience_level)}
+        ${body.experience_notes ? row("Notes", body.experience_notes) : ""}
+        ${reg.languages ? row("Languages", reg.languages) : ""}
+        ${reg.special_talents ? row("Special talents", reg.special_talents) : ""}
+        ${reg.notable_clients ? row("Notable clients", reg.notable_clients) : ""}
+        ${reg.availability ? row("Availability", reg.availability) : ""}
+      </table>
+
+      ${reg.emergency_contact_name || reg.emergency_contact_phone ? `
+        <h3 style="font-size: 14px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">Emergency contact</h3>
+        <table style="border-collapse: collapse; width: 100%;">
+          ${row("Name", reg.emergency_contact_name)}
+          ${row("Relationship", reg.emergency_contact_relationship)}
+          ${row("Phone", reg.emergency_contact_phone)}
+        </table>
+      ` : ""}
+
+      ${reg.bank_name || reg.abn || reg.tfn ? `
+        <h3 style="font-size: 14px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">Payment details</h3>
+        <table style="border-collapse: collapse; width: 100%;">
+          ${reg.bank_name ? row("Bank", reg.bank_name) : ""}
+          ${reg.bank_bsb ? row("BSB", reg.bank_bsb) : ""}
+          ${reg.bank_account ? row("Account", reg.bank_account) : ""}
+          ${reg.abn ? row("ABN", reg.abn) : ""}
+          ${reg.tfn ? row("TFN", reg.tfn) : ""}
+        </table>
+      ` : ""}
+
+      <h3 style="font-size: 14px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">Photos</h3>
+      <p style="margin: 4px 0; color: #6b7280; font-size: 13px;">
+        <strong style="color: #111827;">Digitals (${digis.length})</strong> — click each to open/save
+      </p>
+      ${digis.length > 0 ? photoLinks(digis, "Digital") : `<p style="color: #9ca3af; font-size: 13px; margin: 4px 0;">No digitals uploaded.</p>`}
+      <p style="margin: 12px 0 4px; color: #6b7280; font-size: 13px;">
+        <strong style="color: #111827;">Portfolio (${portfolio.length})</strong>
+      </p>
+      ${portfolio.length > 0 ? photoLinks(portfolio, "Portfolio") : `<p style="color: #9ca3af; font-size: 13px; margin: 4px 0;">No portfolio photos uploaded — talent doesn't have any yet, consider organising test shoots.</p>`}
+
+      ${reg.how_heard ? `
+        <h3 style="font-size: 14px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">How they heard about us</h3>
+        <p style="margin: 4px 0; font-size: 13px;">${esc(reg.how_heard)}</p>
+      ` : ""}
+
+      <h3 style="font-size: 14px; margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">Legal</h3>
+      <table style="border-collapse: collapse; width: 100%;">
+        ${row("Code of conduct", reg.code_of_conduct_agreed ? "Agreed" : "Not agreed")}
+        ${row("Talent agreement", reg.agreement_signed ? "Signed" : "Not signed")}
+        ${reg.agreement_signature ? row("Signature", reg.agreement_signature) : ""}
+        ${reg.agreement_signed_at ? row("Signed at", new Date(reg.agreement_signed_at).toLocaleString("en-AU")) : ""}
+      </table>
+
+      <p style="margin: 24px 0 0;">
+        <a href="${adminLink}" style="display: inline-block; padding: 10px 18px; background: #111827; color: #ffffff; text-decoration: none; border-radius: 999px; font-size: 13px; font-weight: 600;">Open in admin</a>
+      </p>
+      ${submissionId ? `<p style="margin: 12px 0 0; color: #9ca3af; font-size: 11px;">Submission ID: ${esc(submissionId)}</p>` : ""}
+    </div>
+  `;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -75,31 +230,15 @@ export async function POST(request: NextRequest) {
 
     // Admin notification
     try {
+      const html = isRegistration
+        ? buildRegistrationAdminEmail({ body, name, submissionId: submission?.id })
+        : buildCastingAdminEmail({ body, name, jobSlug });
+
       await resend.emails.send({
         from: "Nice People <hello@nicepeople.au>",
         to: "info@nicepeople.au",
-        subject: isRegistration ? `New talent registration - ${name}` : `New application - ${name}`,
-        html: `
-          <h2>${isRegistration ? "New talent registration" : "New casting application"}</h2>
-          <p><strong>Job:</strong> ${jobSlug}</p>
-          <p><strong>Name:</strong> ${name}</p>
-          <p><strong>Email:</strong> ${body.email || "-"}</p>
-          <p><strong>Phone:</strong> ${body.phone || "-"}</p>
-          <p><strong>Instagram:</strong> ${body.instagram || "-"}</p>
-          <p><strong>Gender:</strong> ${body.gender || "-"}</p>
-          <p><strong>Experience:</strong> ${body.experience_level || "-"}</p>
-          <p><strong>Digis:</strong> ${(body.digis || []).length} photos</p>
-          <p><strong>Portfolio:</strong> ${(body.portfolio || []).length} photos</p>
-          ${body.previous_work ? `<p><strong>Previous work:</strong><br>${(body.previous_work as string).split("\n").filter((l: string) => l.trim()).map((l: string) => `<a href="${l.trim()}">${l.trim()}</a>`).join("<br>")}</p>` : ""}
-          ${isRegistration && body.registration_data ? `
-            <hr style="margin: 16px 0; border: none; border-top: 1px solid #e5e5e5;">
-            <p><strong>Agreement signed:</strong> ${body.registration_data.agreement_signed ? "Yes" : "No"}</p>
-            <p><strong>Signature:</strong> ${body.registration_data.agreement_signature || "-"}</p>
-            <p><strong>Code of conduct:</strong> ${body.registration_data.code_of_conduct_agreed ? "Agreed" : "Not agreed"}</p>
-          ` : ""}
-          <br>
-          <p><a href="https://casting.nicepeople.au/admin">View in admin</a></p>
-        `,
+        subject: isRegistration ? `New talent registration — ${name}` : `New application — ${name}`,
+        html,
       });
     } catch (emailError) {
       console.error("Admin email notification failed:", emailError);

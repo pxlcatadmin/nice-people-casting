@@ -4,6 +4,11 @@ import { createClient } from "@supabase/supabase-js";
 
 export const revalidate = 60;
 
+// Prevent search engines from indexing the private dashboard.
+export const metadata = {
+  robots: { index: false, follow: false },
+};
+
 interface ActiveCasting {
   id: string;
   title: string;
@@ -12,7 +17,7 @@ interface ActiveCasting {
   shoot_date: string | null;
 }
 
-async function getActiveCastings(): Promise<ActiveCasting[]> {
+async function getPrivateCastings(): Promise<ActiveCasting[]> {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -23,11 +28,10 @@ async function getActiveCastings(): Promise<ActiveCasting[]> {
     .select("id, title, slug, description, shoot_date")
     .eq("status", "open")
     .eq("type", "casting")
-    .eq("visibility", "public")
+    .eq("visibility", "private")
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];
-
   return data;
 }
 
@@ -40,8 +44,8 @@ function formatShootDate(date: string | null) {
   });
 }
 
-export default async function CastingsPage() {
-  const castings = await getActiveCastings();
+export default async function PrivateCastingsPage() {
+  const castings = await getPrivateCastings();
   const count = castings.length;
 
   return (
@@ -58,39 +62,26 @@ export default async function CastingsPage() {
               unoptimized
             />
           </Link>
-          <a
-            href="https://instagram.com/nicepeople.au"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-gray-500 hover:text-black transition-colors"
-          >
-            @nicepeople.au
-          </a>
+          <span className="text-[11px] font-medium text-purple-700 bg-purple-50 rounded-full px-2 py-0.5">
+            Private
+          </span>
         </div>
       </header>
 
       {/* Main */}
       <main className="max-w-2xl mx-auto px-5 py-7">
         <div className="mb-5">
-          <h1 className="text-base font-semibold mb-0.5">Active castings</h1>
+          <h1 className="text-base font-semibold mb-0.5">Private castings</h1>
           <p className="text-xs text-gray-500">
             {count === 0
-              ? "Nothing open right now. Check back soon."
-              : `${count} role${count === 1 ? "" : "s"} open · accepting applications`}
+              ? "Nothing here right now."
+              : `${count} role${count === 1 ? "" : "s"} · unlisted, only visible to people with this link`}
           </p>
         </div>
 
         {count === 0 ? (
           <div className="border border-nice-border rounded-lg py-8 text-center">
-            <p className="text-xs text-gray-400 mb-3">No active castings.</p>
-            <a
-              href="https://instagram.com/nicepeople.au"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-black hover:underline"
-            >
-              Follow @nicepeople.au →
-            </a>
+            <p className="text-xs text-gray-400">No private castings right now.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -106,6 +97,10 @@ export default async function CastingsPage() {
                       <span className="inline-flex items-center gap-1 text-[11px] font-medium text-green-700">
                         <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
                         Live
+                      </span>
+                      <span className="text-gray-300 text-[11px]">·</span>
+                      <span className="text-[11px] font-medium text-purple-700">
+                        Private
                       </span>
                       {c.shoot_date && (
                         <>
@@ -152,14 +147,7 @@ export default async function CastingsPage() {
       <footer className="border-t border-nice-border mt-8">
         <div className="max-w-2xl mx-auto px-5 py-4 flex items-center justify-between text-xs text-gray-400">
           <p>Nice People · Talent &amp; casting</p>
-          <a
-            href="https://instagram.com/nicepeople.au"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-black transition-colors"
-          >
-            @nicepeople.au
-          </a>
+          <span>Unlisted dashboard</span>
         </div>
       </footer>
     </div>

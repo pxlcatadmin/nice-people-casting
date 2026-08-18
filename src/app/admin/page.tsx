@@ -103,6 +103,7 @@ interface Job {
   description: string;
   status: string;
   type: string;
+  visibility: string;
   asset_config: AssetConfig;
   shoot_date: string | null;
   brief_url: string | null;
@@ -267,6 +268,21 @@ export default function AdminDashboard() {
     if (!res.ok) {
       // Revert on failure
       setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status: currentStatus } : j)));
+    }
+  };
+
+  const toggleJobVisibility = async (id: string, currentVisibility: string) => {
+    const newVisibility = currentVisibility === "public" ? "private" : "public";
+    setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, visibility: newVisibility } : j)));
+
+    const res = await fetch("/api/admin/jobs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, visibility: newVisibility }),
+    });
+
+    if (!res.ok) {
+      setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, visibility: currentVisibility } : j)));
     }
   };
 
@@ -655,7 +671,7 @@ export default function AdminDashboard() {
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 pr-24">
+                      <div className="flex items-center gap-3 pr-52">
                         <span className="text-sm text-gray-500">
                           {count} submission{count !== 1 ? "s" : ""}
                         </span>
@@ -685,6 +701,24 @@ export default function AdminDashboard() {
                         Copy link
                       </>
                     )}
+                  </button>
+                  {/* Public/Private visibility toggle */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleJobVisibility(job.id, job.visibility || "public");
+                    }}
+                    title={(job.visibility || "public") === "public"
+                      ? "Public — visible on /castings. Click to move to Private."
+                      : "Private — visible only on /castings/private. Click to make Public."}
+                    className={`absolute top-4 right-[calc(3.5rem+72px)] text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                      (job.visibility || "public") === "public"
+                        ? "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                        : "bg-purple-50 text-purple-700 hover:bg-purple-100"
+                    }`}
+                  >
+                    {(job.visibility || "public") === "public" ? "Public" : "Private"}
                   </button>
                   {/* Active/Inactive toggle */}
                   <button
