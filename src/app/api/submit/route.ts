@@ -11,6 +11,12 @@ const supabase = createClient(
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Sender must be on a domain verified in Resend, otherwise every send
+// is rejected with a 403. Overridable via env so the sender can be
+// switched without a redeploy.
+const EMAIL_FROM = process.env.EMAIL_FROM || "Nice People <hello@nicepeople.au>";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "info@nicepeople.au";
+
 // ---------- Admin email templates ----------
 
 function esc(v: unknown): string {
@@ -234,14 +240,20 @@ export async function POST(request: NextRequest) {
         ? buildRegistrationAdminEmail({ body, name, submissionId: submission?.id })
         : buildCastingAdminEmail({ body, name, jobSlug });
 
-      await resend.emails.send({
-        from: "Nice People <hello@nicepeople.au>",
-        to: "info@nicepeople.au",
+      const { error: sendError } = await resend.emails.send({
+        from: EMAIL_FROM,
+        to: ADMIN_EMAIL,
         subject: isRegistration ? `New talent registration — ${name}` : `New application — ${name}`,
         html,
       });
+      // The Resend SDK returns errors rather than throwing, so an unchecked
+      // call fails silently (this is how a 403 unverified-domain error went
+      // unnoticed). Surface it so it shows up in the platform logs.
+      if (sendError) {
+        console.error("[email] Admin notification REJECTED by Resend:", JSON.stringify(sendError));
+      }
     } catch (emailError) {
-      console.error("Admin email notification failed:", emailError);
+      console.error("[email] Admin notification threw:", emailError);
     }
 
     // Registration welcome email with signed agreement PDF
@@ -267,8 +279,8 @@ export async function POST(request: NextRequest) {
           .update({ registration_data: { ...body.registration_data, agreement_pdf_url: pdfUrl } })
           .eq("id", submission?.id);
 
-        await resend.emails.send({
-          from: "Nice People <hello@nicepeople.au>",
+        const { error: welcomeError } = await resend.emails.send({
+          from: EMAIL_FROM,
           to: body.email,
           subject: "Welcome to Nice People",
           attachments: [
@@ -302,15 +314,18 @@ export async function POST(request: NextRequest) {
             </div>
           `,
         });
+        if (welcomeError) {
+          console.error("[email] Welcome email REJECTED by Resend:", JSON.stringify(welcomeError));
+        }
       } catch (emailError) {
-        console.error("Registration welcome email failed:", emailError);
+        console.error("[email] Welcome email threw:", emailError);
       }
     }
     // Casting applicant thank-you email (only for signed-in users with a Google account)
     else if (!isRegistration && body.profile_id && body.email) {
       try {
-        await resend.emails.send({
-          from: "Nice People <hello@nicepeople.au>",
+        const { error: thanksError } = await resend.emails.send({
+          from: EMAIL_FROM,
           to: body.email,
           subject: "Thanks for applying!",
           html: `
@@ -326,8 +341,11 @@ export async function POST(request: NextRequest) {
             </div>
           `,
         });
+        if (thanksError) {
+          console.error("[email] Applicant thank-you REJECTED by Resend:", JSON.stringify(thanksError));
+        }
       } catch (emailError) {
-        console.error("Applicant thank-you email failed:", emailError);
+        console.error("[email] Applicant thank-you threw:", emailError);
       }
     }
 
