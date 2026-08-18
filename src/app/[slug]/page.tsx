@@ -280,7 +280,7 @@ export default function SubmissionForm() {
   // Build dynamic steps
   const steps = useMemo(() => {
     if (isRegistration) {
-      return ["welcome", "about", "measurements_reg", "experience_reg", "emergency", "payment", "code_of_conduct", "agreement"];
+      return ["welcome", "about", "measurements_reg", "experience_reg", "portfolio_reg", "emergency", "payment", "code_of_conduct", "agreement"];
     }
     const s: string[] = ["welcome", "about"];
     if (config.measurements.enabled) s.push("measurements");
@@ -402,6 +402,7 @@ export default function SubmissionForm() {
   const getButtonLabel = () => {
     if (step === TOTAL_STEPS) return submitting ? "Submitting..." : isRegistration ? "Submit registration" : "Submit application";
     if (currentStepName === "portfolio" && portfolioFiles.length === 0) return "Skip";
+    if (currentStepName === "portfolio_reg" && portfolioFiles.length === 0) return "Skip";
     if (currentStepName === "self_tape" && !config.self_tape?.required && !form.self_tape_url.trim()) return "Skip";
     if (currentStepName === "previous_work" && !config.previous_work?.required && !form.previous_work.trim()) return "Skip";
     if (currentStepName === "code_of_conduct") return "I agree";
@@ -1127,6 +1128,89 @@ export default function SubmissionForm() {
               ))}
 
               {portfolioFiles.length < (config.portfolio?.max || 10) && (
+                <button
+                  type="button"
+                  onClick={() => portfolioInputRef.current?.click()}
+                  className="aspect-[3/4] rounded-lg border-2 border-dashed border-nice-border flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-gray-400 hover:text-gray-500 transition-colors"
+                >
+                  <svg
+                    className="w-8 h-8"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  <span className="text-xs">Add photo</span>
+                </button>
+              )}
+            </div>
+
+            <input
+              ref={portfolioInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handlePortfolio}
+              className="hidden"
+            />
+          </div>
+        )}
+
+        {/* Portfolio (registration) */}
+        {currentStepName === "portfolio_reg" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-1">Portfolio photos</h2>
+              <p className="text-gray-400 text-sm">
+                These help us build your profile on the Nice People site &mdash;
+                it&apos;s the first thing clients see when they browse our
+                talent, so strong images help you get booked.
+              </p>
+              <div className="mt-3 p-3 bg-nice-gray rounded-lg">
+                <p className="text-xs text-gray-500 font-medium mb-1.5">What qualifies:</p>
+                <ul className="text-xs text-gray-500 space-y-1">
+                  <li>&bull; Photos taken with a professional camera</li>
+                  <li>&bull; Campaign, editorial or test shoot images</li>
+                  <li>&bull; Anything shot by a photographer (not phone selfies)</li>
+                </ul>
+                <p className="text-xs text-gray-400 mt-3">
+                  <strong className="text-gray-500">No portfolio yet?</strong>{" "}
+                  That&apos;s totally OK &mdash; skip this step. It lets us
+                  know to organise some test shoots for you, and it
+                  streamlines the process on our end.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-400">
+              Optional &bull; Up to 10 photos
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              {portfolioPreviews.map((preview, i) => (
+                <div key={i} className="relative aspect-[3/4] rounded-lg overflow-hidden bg-nice-gray">
+                  <img
+                    src={preview}
+                    alt={`Portfolio ${i + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePortfolio(i)}
+                    className="absolute top-2 right-2 w-7 h-7 bg-black/60 text-white rounded-full flex items-center justify-center text-sm hover:bg-black/80"
+                  >
+                    x
+                  </button>
+                </div>
+              ))}
+
+              {portfolioFiles.length < 10 && (
                 <button
                   type="button"
                   onClick={() => portfolioInputRef.current?.click()}
