@@ -152,7 +152,7 @@ export default function ClientLookbook() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
-        <Image src="/nice-people-logo.png" alt="Nice People" width={40} height={40} unoptimized className="animate-pulse" />
+        <Image src="/nice-people-logo.png" alt="Nice People" width={90} height={40} unoptimized className="animate-pulse" />
       </div>
     );
   }
@@ -160,7 +160,7 @@ export default function ClientLookbook() {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-white">
-        <Image src="/nice-people-logo.png" alt="Nice People" width={48} height={48} unoptimized className="mb-6" />
+        <Image src="/nice-people-logo.png" alt="Nice People" width={108} height={48} unoptimized className="mb-6" />
         <h1 className="text-xl font-semibold text-center mb-2">
           {error === "not_found" ? "Link not found" : "This link is no longer active"}
         </h1>
@@ -174,7 +174,7 @@ export default function ClientLookbook() {
   if (!data || data.submissions.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-white">
-        <Image src="/nice-people-logo.png" alt="Nice People" width={48} height={48} unoptimized className="mb-6" />
+        <Image src="/nice-people-logo.png" alt="Nice People" width={108} height={48} unoptimized className="mb-6" />
         <h1 className="text-xl font-semibold text-center mb-2">No talent shortlisted yet</h1>
         <p className="text-gray-400 text-sm text-center max-w-xs">The agency is still reviewing submissions.</p>
       </div>
@@ -376,7 +376,7 @@ export default function ClientLookbook() {
       {/* Header */}
       <div className="sticky top-0 bg-white/90 backdrop-blur-sm border-b border-nice-border z-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <Image src="/nice-people-logo.png" alt="Nice People" width={24} height={24} unoptimized />
+          <Image src="/nice-people-logo.png" alt="Nice People" width={54} height={24} unoptimized />
           <span className="text-sm font-medium text-gray-700">{data.job.title}</span>
         </div>
       </div>

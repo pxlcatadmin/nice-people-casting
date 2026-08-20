@@ -624,7 +624,7 @@ export default function SubmissionForm() {
         <Image
           src="/nice-people-logo.png"
           alt="Nice People"
-          width={48}
+          width={108}
           height={48}
           className="mb-6 animate-pulse"
           unoptimized
@@ -639,7 +639,7 @@ export default function SubmissionForm() {
         <Image
           src="/nice-people-logo.png"
           alt="Nice People"
-          width={60}
+          width={135}
           height={60}
           className="mb-6"
           unoptimized
@@ -661,7 +661,7 @@ export default function SubmissionForm() {
         <Image
           src="/nice-people-logo.png"
           alt="Nice People"
-          width={60}
+          width={135}
           height={60}
           className="mb-6"
           unoptimized
@@ -683,7 +683,7 @@ export default function SubmissionForm() {
         <Image
           src="/nice-people-logo.png"
           alt="Nice People"
-          width={60}
+          width={135}
           height={60}
           className="mb-6"
           unoptimized
@@ -741,7 +741,7 @@ export default function SubmissionForm() {
           <Image
             src="/nice-people-logo.png"
             alt="Nice People"
-            width={36}
+            width={81}
             height={36}
             unoptimized
           />

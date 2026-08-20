@@ -35,7 +35,7 @@ export default async function OGImage({
         <img
           src="https://casting.nicepeople.au/nice-people-logo.png"
           alt="Nice People"
-          width={80}
+          width={180}
           height={80}
           style={{ marginBottom: 24 }}
         />

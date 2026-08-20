@@ -307,7 +307,7 @@ export default function AdminDashboard() {
         <Image
           src="/nice-people-logo.png"
           alt="Nice People"
-          width={48}
+          width={108}
           height={48}
           className="mb-8"
           unoptimized
@@ -344,7 +344,7 @@ export default function AdminDashboard() {
             <Image
               src="/nice-people-logo.png"
               alt="Nice People"
-              width={32}
+              width={72}
               height={32}
               unoptimized
             />

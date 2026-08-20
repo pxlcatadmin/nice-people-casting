@@ -394,7 +394,7 @@ export default function JobReview() {
               <Image
                 src="/nice-people-logo.png"
                 alt="Nice People"
-                width={28}
+                width={63}
                 height={28}
                 unoptimized
                 className="flex-shrink-0 hidden sm:block"

@@ -52,7 +52,7 @@ export default async function PrivateCastingsPage() {
             <Image
               src="/nice-people-logo.png"
               alt="Nice People"
-              width={26}
+              width={59}
               height={26}
               unoptimized
             />

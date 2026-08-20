@@ -9,7 +9,7 @@ export default function Home() {
       <Image
         src="/nice-people-logo.png"
         alt="Nice People"
-        width={72}
+        width={162}
         height={72}
         className="mb-6"
         unoptimized

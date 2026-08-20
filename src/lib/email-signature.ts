@@ -2,7 +2,7 @@ export const EMAIL_SIGNATURE = `
 <table cellpadding="0" cellspacing="0" border="0" style="margin-top: 30px; border-top: 1px solid #e5e5e5; padding-top: 20px;">
   <tr>
     <td style="padding-right: 16px; vertical-align: top;">
-      <img src="https://casting.nicepeople.au/nice-people-logo.png" alt="Nice People" width="80" height="80" style="display: block;" />
+      <img src="https://casting.nicepeople.au/nice-people-logo.png" alt="Nice People" width="180" height="80" style="display: block;" />
     </td>
     <td style="vertical-align: top; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <p style="margin: 0 0 2px 0; font-size: 14px; font-weight: 700; color: #333;">Nice People</p>

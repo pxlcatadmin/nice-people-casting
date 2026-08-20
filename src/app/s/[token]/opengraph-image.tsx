@@ -24,7 +24,7 @@ export default function OGImage() {
         <img
           src="https://casting.nicepeople.au/nice-people-logo.png"
           alt="Nice People"
-          width={100}
+          width={225}
           height={100}
           style={{ marginBottom: 28 }}
         />

@@ -138,7 +138,7 @@ export default function AuthCallback() {
       <Image
         src="/nice-people-logo.png"
         alt="Nice People"
-        width={60}
+        width={135}
         height={60}
         className="mb-6"
         unoptimized
