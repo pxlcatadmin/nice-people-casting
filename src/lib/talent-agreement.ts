@@ -19,10 +19,26 @@ export const AGREEMENT_EFFECTIVE = "2026-08-20";
 export const AGENCY_NAME = "Nice People Talent Agency";
 export const AGENCY_ADDRESS = "732a Sydney Road, Brunswick VIC 3056";
 
-export const AGENCY_SIGNATORIES = [
-  "Joel Fenton – Nice People Talent Agency",
-  "Jake Mercer – Nice People Talent Agency",
+/**
+ * Who signs on behalf of the agency.
+ *
+ * These signatures appear ONLY on the countersigned PDF that is emailed to the
+ * performer after they sign. They are deliberately not shown during the
+ * on-screen signing step — the performer signs first, the agency countersigns.
+ *
+ * `signatureKey` maps to an image in src/lib/signature-images.ts. If a key has
+ * no image, the PDF falls back to rendering the name in an italic serif.
+ */
+export const AGENCY_SIGNATORIES: {
+  name: string;
+  title: string;
+  signatureKey: string;
+}[] = [
+  { name: "Joel Fenton", title: "Director", signatureKey: "joel-fenton" },
+  { name: "Jake Mercer", title: "Director", signatureKey: "jake-mercer" },
 ];
+
+export const AGENCY_SIGNATORY_SUBTITLE = "on behalf of Nice People";
 
 export type AgreementBlock =
   | { kind: "p"; text: string }

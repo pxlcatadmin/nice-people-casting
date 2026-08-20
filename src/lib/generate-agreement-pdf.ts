@@ -4,7 +4,10 @@ import {
   AGREEMENT_VERSION,
   AGENCY_NAME,
   AGENCY_ADDRESS,
+  AGENCY_SIGNATORIES,
+  AGENCY_SIGNATORY_SUBTITLE,
 } from "./talent-agreement";
+import { SIGNATURE_IMAGES } from "./signature-images";
 
 interface AgreementData {
   performerName: string;
@@ -156,47 +159,45 @@ export function generateAgreementPdf(data: AgreementData): Buffer {
   doc.text(`Signed electronically on ${signDate}`, margin, y);
   y += 10;
 
-  // Representative signatures
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(80);
-  doc.text("Performer Representative", margin, y);
-  y += 6;
+  // Agency countersignatures.
+  // These appear only here, on the emailed PDF — the performer never sees them
+  // during the on-screen signing step.
+  for (const signatory of AGENCY_SIGNATORIES) {
+    addNewPageIfNeeded(34);
 
-  doc.setFont("times", "italic");
-  doc.setFontSize(14);
-  doc.setTextColor(0);
-  doc.text("Joel Fenton", margin, y);
-  y += 3;
-  doc.setDrawColor(180);
-  doc.line(margin, y, margin + 80, y);
-  y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    doc.text(signatory.title, margin, y);
+    y += 6;
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(120);
-  doc.text(AGENCY_NAME, margin, y);
-  y += 10;
+    const img = SIGNATURE_IMAGES[signatory.signatureKey];
+    if (img) {
+      // Scale the signature to a consistent height, preserving aspect ratio.
+      const targetH = 14;
+      const props = doc.getImageProperties(img);
+      const targetW = Math.min((props.width / props.height) * targetH, 80);
+      doc.addImage(img, "PNG", margin, y - targetH + 3, targetW, targetH);
+      y += 5;
+    } else {
+      // No image on file — fall back to the name in italic serif.
+      doc.setFont("times", "italic");
+      doc.setFontSize(14);
+      doc.setTextColor(0);
+      doc.text(signatory.name, margin, y);
+      y += 3;
+    }
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(80);
-  doc.text("Performer Representative", margin, y);
-  y += 6;
+    doc.setDrawColor(180);
+    doc.line(margin, y, margin + 80, y);
+    y += 5;
 
-  doc.setFont("times", "italic");
-  doc.setFontSize(14);
-  doc.setTextColor(0);
-  doc.text("Jake Mercer", margin, y);
-  y += 3;
-  doc.setDrawColor(180);
-  doc.line(margin, y, margin + 80, y);
-  y += 5;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(120);
-  doc.text(AGENCY_NAME, margin, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(`${signatory.name}, ${AGENCY_SIGNATORY_SUBTITLE}`, margin, y);
+    y += 12;
+  }
 
   // Footer on each page
   const totalPages = doc.getNumberOfPages();
