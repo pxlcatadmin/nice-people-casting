@@ -2,6 +2,11 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
+import {
+  AGREEMENT_CLAUSES,
+  AGREEMENT_CLAUSE_COUNT,
+  AGENCY_ADDRESS,
+} from "@/lib/talent-agreement";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 
@@ -1747,7 +1752,7 @@ export default function SubmissionForm() {
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    16 clauses
+                    {AGREEMENT_CLAUSE_COUNT} clauses
                   </div>
                 </div>
               </div>
@@ -1764,90 +1769,31 @@ export default function SubmissionForm() {
                     <div className="p-3 bg-nice-gray rounded-lg">
                       <p className="text-xs text-gray-400 mb-1">Representative</p>
                       <p className="font-medium text-gray-800">Nice People Talent Agency</p>
-                      <p className="text-xs text-gray-500">732a Sydney Road Brunswick</p>
+                      <p className="text-xs text-gray-500">{AGENCY_ADDRESS}</p>
                     </div>
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[1] Background</h3>
-                  <p>This contract defines the Performer as an independent contractor who solicits the services of the Performer Representative to procure paid opportunities with Entertainment Industry Employers.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[2] Services Provided</h3>
-                  <p className="mb-1">[a] Performer Representative hereby agrees to engage The Performer to provide The Performer Representative with the following services.</p>
-                  <p>[b] The Services will also include any other tasks the Parties may agree on. The Performer hereby agrees to give such services to The Performer Representative.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[3] Terms of Agreement</h3>
-                  <p className="mb-1">[a] The terms of this Agreement will begin on the date of this Agreement and will remain in full force and effect until terminated as provided in this Agreement.</p>
-                  <p className="mb-1">[b] Either Party may terminate this Agreement by providing 14 working days written notice to the other Party.</p>
-                  <p className="mb-1">[c] In the event that either Party breaches a material provision under this Agreement, the non-defaulting Party may terminate this Agreement immediately and require the defaulting Party to indemnify the non-defaulting Party against all reasonable damages.</p>
-                  <p>[d] This Agreement may be terminated at any time by mutual agreement between the Parties.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[4] Payment</h3>
-                  <p className="mb-1">[b] The Performer will be responsible for all income tax liabilities and similar contributions relating to the Payment and will indemnify The Performer Representative in respect of any such payments required to be made by The Performer Representative.</p>
-                  <p className="mb-1">[c] The Performer Representative will deduct a 30% commission from the total payment for standard jobs obtained by The Performer Representative for The Performer. For specialty projects or unique services, an alternative project fee may be agreed upon in writing by both parties prior to commencement.</p>
-                  <p className="mb-1">[d] The agreed pay is final unless otherwise negotiated due to specific circumstances. Any changes to the agreed pay must be discussed and agreed upon in writing by both parties.</p>
-                  <p>[e] Unless otherwise stated in the order or agreed by Nice People in writing, payments will be made within 30 days from Invoice date or receipt date, whichever is the latter. In addition, where the supply is on behalf of one of our clients, we shall only pay once we have received the funds from our client. The same principle applies to usage rollover payments.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[5] Use of Image & Likeness</h3>
-                  <p>The Performer grants Nice People permission to use their name, image, and portfolio for promotional and casting purposes. This includes use on the Nice People website, Nice Paper, social media, and in materials shared with prospective clients. Usage beyond these purposes requires Performer consent.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[6] Non-Exclusivity</h3>
-                  <p>The Parties acknowledge that this Agreement is non-exclusive and that either Party will be free, during and after the Term, to engage or contract with third parties for the provision of services similar to the Services, except as restricted below.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[7] Non-Solicitation</h3>
-                  <p>The Performer agrees not to directly or indirectly solicit or provide services to any clients introduced by The Performer Representative for a period of 6 months following the termination of this Agreement, unless such services are coordinated through The Performer Representative.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[8] Confidentiality</h3>
-                  <p className="mb-1">[a] Confidential information refers to any data or information relating to The Performer Representative, whether business or personal, which would reasonably be considered to be private or proprietary to The Performer Representative and that is not generally known and where the release of that Confidential Information could reasonably be expected to cause harm to The Performer Representative.</p>
-                  <p>[b] The Performer agrees not to disclose, divulge, reveal, report, or use, for any purpose, any Confidential Information which The Performer has obtained, except as authorised by The Performer Representative or as required by law.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[9] Intellectual Property</h3>
-                  <p>All intellectual property and related material that is developed or produced under this Agreement will be the sole property of The Performer Representative. The use of the Intellectual Property by The Performer Representative will not be restricted in any manner.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[10] Return of Property</h3>
-                  <p>Upon the expiry or termination of this Agreement, The Performer will return to The Performer Representative any property, documentation, records, or Confidential Information which is the property of The Performer Representative.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[11] Capacity/Independent Contractor</h3>
-                  <p>In providing the Services under this Agreement, it is expressly agreed that The Performer is acting as an independent contractor and not as an employee. This Agreement does not create a partnership or joint venture between the Parties.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[12] Autonomy</h3>
-                  <p>Except as otherwise provided in this Agreement, The Performer will have full control over working time, methods, and decision making in relation to the provision of the Services. However, The Performer will be responsive to the reasonable needs and concerns of The Performer Representative.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[13] Notice</h3>
-                  <p>All notices, requests, demands, or other communications required or permitted by the terms of this Agreement will be given in writing and delivered to the Parties at the following addresses:</p>
-                  <p className="mt-1 text-gray-500">Nice People Talent Agency: 732a Sydney Road Brunswick</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[14] Indemnification</h3>
-                  <p>Each Party agrees to indemnify and hold harmless the other Party against any and all claims, losses, damages, liabilities, expenses, reasonable legal fees, and costs of any kind or amount whatsoever, which result from or arise out of any act or omission of the indemnifying Party. This indemnification will survive the termination of this Agreement.</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[15] Professional Conduct</h3>
-                  <p className="mb-2">As an ambassador of Nice People, we expect our talent to embody our core value of kindness in every professional interaction. This includes:</p>
-                  <ul className="space-y-1 text-gray-500">
-                    <li>- Arrive 15 minutes early to all bookings, castings, and meetings</li>
-                    <li>- Treating all cast, crew, and clients with genuine respect and consideration</li>
-                    <li>- Maintaining a positive, collaborative attitude on set</li>
-                    <li>- Contributing to a welcoming and inclusive environment on every job</li>
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-800 mb-1">[16] Model Safety & Consent</h3>
-                  <p>At Nice People, we enforce a strict zero-tolerance policy regarding our talent&apos;s safety, comfort, and wellbeing. Every client who works with our talent signs an agreement acknowledging that they will respect our talent&apos;s boundaries without question, and that any breach of this will result in immediate shoot termination at their expense. If at any point during a shoot you feel even slightly uncomfortable, or if you&apos;re asked to do anything beyond what was originally agreed upon (no matter how minor the change may seem), you have the absolute right to stop the shoot immediately. You never need to explain or justify your discomfort. Simply call us - we are here for you 24/7, and we will handle all client communications about the situation. While we expect our talent to maintain the highest standards of professionalism, your safety and comfort take precedence over all other considerations. This policy is non-negotiable: you will never be penalised for speaking up or stopping a shoot due to discomfort or safety concerns. Your instincts are valid, your boundaries are valid, and we will always have your back.</p>
-                </div>
+                {AGREEMENT_CLAUSES.map((clause) => (
+                  <div key={clause.number}>
+                    <h3 className="font-semibold text-gray-800 mb-1">
+                      [{clause.number}] {clause.title}
+                    </h3>
+                    {clause.blocks.map((block, bi) =>
+                      block.kind === "p" ? (
+                        <p key={bi} className="mb-1 last:mb-0">
+                          {block.text}
+                        </p>
+                      ) : (
+                        <ul key={bi} className="space-y-1 text-gray-500 my-1.5 pl-1">
+                          {block.items.map((item, ii) => (
+                            <li key={ii}>&bull;&nbsp; {item}</li>
+                          ))}
+                        </ul>
+                      )
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
