@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabase-server";
 
 export const revalidate = 60;
 
@@ -13,12 +13,7 @@ interface ActiveCasting {
 }
 
 async function getActiveCastings(): Promise<ActiveCasting[]> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("jobs")
     .select("id, title, slug, description, shoot_date")
     .eq("status", "open")
