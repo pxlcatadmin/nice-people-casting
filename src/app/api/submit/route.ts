@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     // Find the job
     const { data: job, error: jobError } = await supabase
       .from("jobs")
-      .select("id, type")
+      .select("id, type, title")
       .eq("slug", jobSlug)
       .eq("status", "open")
       .single();
@@ -321,8 +321,9 @@ export async function POST(request: NextRequest) {
         console.error("[email] Welcome email threw:", emailError);
       }
     }
-    // Casting applicant thank-you email (only for signed-in users with a Google account)
-    else if (!isRegistration && body.profile_id && body.email) {
+    // Casting applicant thank-you email — sent to every applicant who gave
+    // us an email address, signed in or not.
+    else if (!isRegistration && body.email) {
       try {
         const { error: thanksError } = await resend.emails.send({
           from: EMAIL_FROM,
@@ -332,11 +333,19 @@ export async function POST(request: NextRequest) {
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px;">
               <p style="font-size: 16px; color: #333;">Hey ${body.first_name || "there"},</p>
               <p style="font-size: 15px; color: #555; line-height: 1.6;">
-                Thanks for submitting your application! Our casting team will review your details and be in touch if you're a match.
+                Thanks for submitting your application${job.title ? ` for <strong>${esc(job.title)}</strong>` : ""}. Our casting team reviews every submission and we'll be in touch if you're a match.
               </p>
               <p style="font-size: 15px; color: #555; line-height: 1.6;">
-                Since you're signed in with Google, your details are saved to your profile. Next time you apply, just sign in and everything will be pre-filled for you.
+                In the meantime, follow us on Instagram. We post new casting calls there first, so it's the best way to hear about roles as they come up.
               </p>
+              <p style="margin: 24px 0;">
+                <a href="https://www.instagram.com/nicepeopleau/" style="display: inline-block; padding: 12px 24px; background: #111827; color: #ffffff; text-decoration: none; border-radius: 999px; font-size: 14px; font-weight: 600;">Follow @nicepeopleau</a>
+              </p>
+              ${body.profile_id ? `
+              <p style="font-size: 14px; color: #777; line-height: 1.6;">
+                Your details are saved to your profile. Next time you apply, just sign in and everything will be pre-filled for you.
+              </p>
+              ` : ""}
               ${EMAIL_SIGNATURE}
             </div>
           `,
