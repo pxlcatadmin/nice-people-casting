@@ -305,7 +305,7 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-white">
         <Image
-          src="https://i.ibb.co/v2dbL7X/Group-9.png"
+          src="/nice-people-logo.png"
           alt="Nice People"
           width={48}
           height={48}
@@ -342,7 +342,7 @@ export default function AdminDashboard() {
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image
-              src="https://i.ibb.co/v2dbL7X/Group-9.png"
+              src="/nice-people-logo.png"
               alt="Nice People"
               width={32}
               height={32}

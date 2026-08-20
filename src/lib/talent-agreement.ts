@@ -26,16 +26,11 @@ export const AGENCY_ADDRESS = "732a Sydney Road, Brunswick VIC 3056";
  * performer after they sign. They are deliberately not shown during the
  * on-screen signing step — the performer signs first, the agency countersigns.
  *
- * `signatureKey` maps to an image in src/lib/signature-images.ts. If a key has
- * no image, the PDF falls back to rendering the name in an italic serif.
+ * Rendered in the same italic serif as the performer's own signature.
  */
-export const AGENCY_SIGNATORIES: {
-  name: string;
-  title: string;
-  signatureKey: string;
-}[] = [
-  { name: "Joel Fenton", title: "Director", signatureKey: "joel-fenton" },
-  { name: "Jake Mercer", title: "Director", signatureKey: "jake-mercer" },
+export const AGENCY_SIGNATORIES: { name: string; title: string }[] = [
+  { name: "Joel Fenton", title: "Director" },
+  { name: "Jake Mercer", title: "Director" },
 ];
 
 export const AGENCY_SIGNATORY_SUBTITLE = "on behalf of Nice People";

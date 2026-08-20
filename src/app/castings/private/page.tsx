@@ -50,7 +50,7 @@ export default async function PrivateCastingsPage() {
         <div className="max-w-2xl mx-auto px-5 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center">
             <Image
-              src="https://i.ibb.co/v2dbL7X/Group-9.png"
+              src="/nice-people-logo.png"
               alt="Nice People"
               width={26}
               height={26}

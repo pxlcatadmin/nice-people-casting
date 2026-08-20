@@ -33,7 +33,7 @@ export default async function OGImage({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="https://i.ibb.co/v2dbL7X/Group-9.png"
+          src="https://casting.nicepeople.au/nice-people-logo.png"
           alt="Nice People"
           width={80}
           height={80}

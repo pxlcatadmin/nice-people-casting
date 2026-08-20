@@ -392,7 +392,7 @@ export default function JobReview() {
                 </svg>
               </button>
               <Image
-                src="https://i.ibb.co/v2dbL7X/Group-9.png"
+                src="/nice-people-logo.png"
                 alt="Nice People"
                 width={28}
                 height={28}

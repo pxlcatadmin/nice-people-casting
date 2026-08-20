@@ -622,7 +622,7 @@ export default function SubmissionForm() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-white">
         <Image
-          src="https://i.ibb.co/v2dbL7X/Group-9.png"
+          src="/nice-people-logo.png"
           alt="Nice People"
           width={48}
           height={48}
@@ -637,7 +637,7 @@ export default function SubmissionForm() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-white">
         <Image
-          src="https://i.ibb.co/v2dbL7X/Group-9.png"
+          src="/nice-people-logo.png"
           alt="Nice People"
           width={60}
           height={60}
@@ -659,7 +659,7 @@ export default function SubmissionForm() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-white">
         <Image
-          src="https://i.ibb.co/v2dbL7X/Group-9.png"
+          src="/nice-people-logo.png"
           alt="Nice People"
           width={60}
           height={60}
@@ -681,7 +681,7 @@ export default function SubmissionForm() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-white">
         <Image
-          src="https://i.ibb.co/v2dbL7X/Group-9.png"
+          src="/nice-people-logo.png"
           alt="Nice People"
           width={60}
           height={60}
@@ -739,7 +739,7 @@ export default function SubmissionForm() {
       <div className="sticky top-0 bg-white/90 backdrop-blur-sm border-b border-nice-border z-10">
         <div className="max-w-lg mx-auto px-6 py-4 flex items-center justify-between">
           <Image
-            src="https://i.ibb.co/v2dbL7X/Group-9.png"
+            src="/nice-people-logo.png"
             alt="Nice People"
             width={36}
             height={36}

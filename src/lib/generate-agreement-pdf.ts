@@ -7,7 +7,6 @@ import {
   AGENCY_SIGNATORIES,
   AGENCY_SIGNATORY_SUBTITLE,
 } from "./talent-agreement";
-import { SIGNATURE_IMAGES } from "./signature-images";
 
 interface AgreementData {
   performerName: string;
@@ -171,22 +170,13 @@ export function generateAgreementPdf(data: AgreementData): Buffer {
     doc.text(signatory.title, margin, y);
     y += 6;
 
-    const img = SIGNATURE_IMAGES[signatory.signatureKey];
-    if (img) {
-      // Scale the signature to a consistent height, preserving aspect ratio.
-      const targetH = 14;
-      const props = doc.getImageProperties(img);
-      const targetW = Math.min((props.width / props.height) * targetH, 80);
-      doc.addImage(img, "PNG", margin, y - targetH + 3, targetW, targetH);
-      y += 5;
-    } else {
-      // No image on file — fall back to the name in italic serif.
-      doc.setFont("times", "italic");
-      doc.setFontSize(14);
-      doc.setTextColor(0);
-      doc.text(signatory.name, margin, y);
-      y += 3;
-    }
+    // Rendered in the same italic serif as the performer's signature above,
+    // so all three signatures on the page match.
+    doc.setFont("times", "italic");
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text(signatory.name, margin, y);
+    y += 3;
 
     doc.setDrawColor(180);
     doc.line(margin, y, margin + 80, y);

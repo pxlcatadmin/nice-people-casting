@@ -136,7 +136,7 @@ export default function AuthCallback() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-white">
       <Image
-        src="https://i.ibb.co/v2dbL7X/Group-9.png"
+        src="/nice-people-logo.png"
         alt="Nice People"
         width={60}
         height={60}
